@@ -1,4 +1,6 @@
-# claude-mods
+# Claude Mods
+
+![Version](https://img.shields.io/badge/Version-0.1.0-blue)
 
 Mods for Claude Code — plugins whose whole behaviour fits in one *function
 hooks* module: a `register(on, options)` that hooks the engine's events in
@@ -10,15 +12,27 @@ the shape `($, e, next)`.
 
 ## Installing
 
+Two things are needed before a mod runs, both because function hooks are
+still early access: **Claude Code 2.1.278 or newer**, and the environment
+variable that switches the feature on.
+
+From inside a Claude Code session:
+
+```
+/plugin marketplace add devohmycode/claude-mods
+/plugin install cockpit@claude-devohmycode-mods
+```
+
+Or from the shell:
+
 ```bash
 claude plugin marketplace add devohmycode/claude-mods
-
 claude plugin install cockpit@claude-devohmycode-mods
 ```
 
-Function hooks are in early access: Claude Code loads a hooks module only
-when `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` is in the environment. Put it
-where your shell keeps its variables rather than in front of one command —
+Claude Code loads a hooks module only when
+`CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` is in the environment. Put it where
+your shell keeps its variables rather than in front of one command —
 otherwise the plugin is installed and its hooks never run.
 
 ```bash
@@ -27,6 +41,9 @@ $env:CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = "1"     # PowerShell, this session
 setx CLAUDE_CODE_ENABLE_FUNCTION_HOOKS 1         # Windows, once and for all
 ```
 
+`claude --version` says which build you are on. The declarations these mods
+are typechecked against were written by 2.1.278, and
+`types/claude-code.d.ts` names that build on its first line.
 ## Layout
 
 ```

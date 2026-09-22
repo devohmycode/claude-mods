@@ -1,5 +1,7 @@
 # cockpit
 
+![Version](https://img.shields.io/badge/Version-0.3.0-blue)
+
 One pane of tabs beside the transcript, and the `$.cockpit` noun other
 plugins fill. `/cockpit` opens it and closes it again, and so does the
 `[ Cockpit ]` button in the band above the prompt; `/cockpit files` opens it
@@ -34,14 +36,27 @@ would answer the next thing typed with the rail's hotkeys.
 
 ## Installing
 
+Two things are needed before the mod runs, both because function hooks are
+still early access: **Claude Code 2.1.278 or newer**, and the environment
+variable that switches the feature on.
+
+From inside a Claude Code session:
+
+```
+/plugin marketplace add devohmycode/claude-mods
+/plugin install cockpit@claude-devohmycode-mods
+```
+
+Or from the shell:
+
 ```bash
 claude plugin marketplace add devohmycode/claude-mods
 claude plugin install cockpit@claude-devohmycode-mods
 ```
 
-Function hooks are in early access: Claude Code loads a hooks module only
-when `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` is in the environment. Put it
-where your shell keeps its variables rather than in front of one command —
+Claude Code loads a hooks module only when
+`CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` is in the environment. Put it where
+your shell keeps its variables rather than in front of one command —
 otherwise the plugin is installed and its hooks never run.
 
 ```bash
@@ -49,6 +64,8 @@ export CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1       # bash, zsh
 $env:CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = "1"     # PowerShell, this session
 setx CLAUDE_CODE_ENABLE_FUNCTION_HOOKS 1         # Windows, once and for all
 ```
+
+`claude --version` says which build you are on.
 
 ## Walking it with the keyboard
 
