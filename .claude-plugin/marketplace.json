@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-devohmycode-mods",
+  "description": "Function-hook mods for Claude Code: a tabbed pane beside the transcript, and the $.cockpit noun other plugins fill.",
+  "owner": {
+    "name": "DevOhMyCode",
+    "url": "https://github.com/devohmycode"
+  },
+  "plugins": [
+    {
+      "name": "cockpit",
+      "source": "./claude-cockpit-mod",
+      "description": "One pane of tabs beside the transcript, and the $.cockpit noun other plugins fill: the session's context, cost and models, what it spent and what the plan has left, the prompts this machine has typed, the files Claude touched, the tools it called and the subagents it started.",
+      "version": "0.3.0",
+      "author": { "name": "DevOhMyCode" },
+      "homepage": "https://github.com/devohmycode/claude-mods/tree/main/claude-cockpit-mod",
+      "repository": "https://github.com/devohmycode/claude-mods",
+      "license": "MIT",
+      "keywords": ["cockpit", "pane", "tabs", "transcript", "session", "usage", "statistics", "function-hooks"],
+      "category": "productivity"
+    }
+  ]
+}

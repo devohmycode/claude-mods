@@ -1,0 +1,15 @@
+# Ce que /plugin-types régénère depuis le binaire installé ; la copie
+# versionnée est types/claude-code.d.ts.
+.claude/types/
+
+node_modules/
+
+*.tsbuildinfo
+
+# Le cahier de l'agent : le plan, les propositions et ce qu'il en rend.
+# Vivant, propre à une machine, jamais au dépôt.
+.agent/
+
+# Les règles que l'agent se donne pour ce dépôt : elles bougent à chaque
+# session, et elles n'engagent que la machine où elles sont écrites.
+CLAUDE.md

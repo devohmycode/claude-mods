@@ -1,0 +1,106 @@
+{
+  "name": "cockpit",
+  "version": "0.3.0",
+  "description": "One pane of tabs beside the transcript, and the $.cockpit noun other plugins fill. /cockpit opens it, and so does the Cockpit button in the band above the prompt: Session reads the context window, the turn count, the model and the cost, with a Raster sparkline of the context the session has spent turn by turn; Usage draws what the session cost — the four token counters the API reports, kept apart by whether the main loop or a subagent spent them, the models that answered, the plan windows as bars with what is left of each, and what every plugin's skill listing adds to the system prompt each turn; Stats reads ~/.claude/history.jsonl for the prompts this machine has typed — a contribution calendar, sessions, projects, active days and streaks, counted as prompts and never as tokens; Files lists what Claude read and wrote — file tools and shell commands alike — heaviest first, with the lines each file moved and the letter git gives it now, each row a button that rides the file on the next prompt and says so once it has; Tools tallies every tool call with its time and its failures, MCP tools by their server and their own name rather than the prefix they all share, and lists the last of them; Agents is the session's record of every subagent it started, each under the one that spawned it, with how long it ran and the status it ended on. A plugin adds its own tab in three lines through $.cockpit.tab, and the cockpit owns the pane, the rail, the hotkeys and the focus; hideTabs leaves any of them off the rail, a plugin’s as readily as a built-in one.",
+  "author": {
+    "name": "DevOhMyCode"
+  },
+  "homepage": "https://github.com/devohmycode/claude-mods/tree/main/claude-cockpit-mod",
+  "repository": "https://github.com/devohmycode/claude-mods",
+  "license": "MIT",
+  "keywords": [
+    "cockpit",
+    "pane",
+    "tabs",
+    "transcript",
+    "session",
+    "usage",
+    "statistics",
+    "function-hooks"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "The language the cockpit draws in: its tab names, its lines and what /cockpit answers. English is the complete one and every other language falls back to it line by line, so a half-finished translation shows its own words where it has them and English where it has not. It does not touch what you type — /cockpit session, the tab ids in the row below, and the command itself keep their spelling whatever the language.",
+      "required": false,
+      "default": "en",
+      "options": [
+        "en",
+        "fr"
+      ]
+    },
+    "defaultTab": {
+      "type": "string",
+      "title": "Opening tab",
+      "description": "The tab /cockpit opens on when the session has no tab of its own yet.",
+      "required": false,
+      "default": "session",
+      "options": [
+        "session",
+        "usage",
+        "stats",
+        "files",
+        "tools",
+        "agents"
+      ]
+    },
+    "hideTabs": {
+      "type": "string",
+      "title": "Tabs the cockpit leaves out",
+      "description": "Ids of the tabs to leave off the rail, comma-separated; empty draws them all. It covers the tabs other plugins contribute as readily as the cockpit's own, so the ids worth typing are the ones registered in the session you open this menu from — the help under this row names them, refreshed each time the menu lists it. An id no tab carries is refused rather than written, since it would hide nothing and look as though it had.",
+      "required": false,
+      "default": ""
+    },
+    "button": {
+      "type": "boolean",
+      "title": "Cockpit button above the prompt",
+      "description": "Draw a Cockpit button in the band above the prompt: pressing it opens the pane and closes it again, as /cockpit does. Off, the band is left to the plugins that draw there and the pane is reached by the command alone.",
+      "required": false,
+      "default": true
+    },
+    "autoRaise": {
+      "type": "boolean",
+      "title": "Follow Claude's work",
+      "description": "Select the tab the work lands on instead of only flagging it: Files when Claude writes a file, Agents when it starts a subagent. It acts only while the pane is already open — closed, the tab is flagged and you find the • when you open it — and it never raises a tab you have left out of the rail. Off, the view stays where you put it, which is what you want while reading one tab as Claude works in another.",
+      "required": false,
+      "default": false
+    },
+    "autoOpen": {
+      "type": "boolean",
+      "title": "Open on the first edit",
+      "description": "Open the pane by itself on Claude's first write of the session — a modification, not a read, and once only. It needs the terminal in its fullscreen layout, and since nobody asked for it at that moment it opens without taking the keyboard, so you go on typing.",
+      "required": false,
+      "default": false
+    },
+    "bashFiles": {
+      "type": "boolean",
+      "title": "Count files shell commands touch",
+      "description": "Credit the Files tab with the files a Bash command reads or writes (cat, sed, tee, cp, a redirection), not only the ones Read, Edit and Write name. It is read off the command line rather than recorded, so it is a reading and can be wrong: it knows that `sed -n 1,20p a.ts` names one file and not two, that `cp a b` writes the last, and that sudo or env hides the real command, and it credits at most eight paths per command so one `rm` does not become the whole tab. Off, the tab lists only what the file tools touched: less complete, nothing guessed.",
+      "required": false,
+      "default": true
+    },
+    "hostStats": {
+      "type": "boolean",
+      "title": "Read the machine's processor, memory and graphics card",
+      "description": "Draw what the machine is doing under the session figures, while the Session tab is open. Nothing in the plugin API reports this, so every reading runs a command of the host: one for the processor and the memory (on Windows a PowerShell that takes about a second and a half), one more where a graphics tool answers. Off, no command is ever run. /cockpit host turns it over for one session without changing this.",
+      "required": false,
+      "default": false
+    },
+    "hostSeconds": {
+      "type": "number",
+      "title": "Seconds between two machine readings",
+      "description": "How often the machine is read while the Session tab is open, between 2 and 60 seconds. It sets this reading alone: the agents list, git and the session figures each have their own pace, and none of them runs a command. The lower it is, the more of the time a process of the host is running.",
+      "required": false,
+      "default": 5
+    },
+    "sessionSeconds": {
+      "type": "number",
+      "title": "Seconds between two readings of the session",
+      "description": "How often the Session and Usage tabs read the context, the cost and the plan windows again while one of them is on screen, between 5 and 300 seconds. The reading is estimated locally and sends no request, so this is a matter of how fresh the figures are rather than of what they cost — and the engine raises session.measure on its own whenever one of them moves, so this poll is the backstop and not the source.",
+      "required": false,
+      "default": 30
+    }
+  }
+}

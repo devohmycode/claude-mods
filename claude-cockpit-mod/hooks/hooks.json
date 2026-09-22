@@ -1,0 +1,4 @@
+{
+  "description": "The cockpit pane: $.cockpit in the engine.create fold, /cockpit and its Pane drawing, the tallies its tabs read from tool calls and finished turns, and the file a tab arms for the next prompt",
+  "modules": ["./register.ts"]
+}

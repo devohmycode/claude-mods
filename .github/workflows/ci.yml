@@ -1,0 +1,69 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Needs nothing but Node: this is the job that must stay green.
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # Each mod against its own tsconfig. The root one covers both at
+      # once and is `npm run typecheck:all`, but a mod that cannot be
+      # compiled alone is a mod that cannot be published alone.
+      - name: typecheck each mod
+        run: npm run typecheck
+
+      # Every option the code reads must be declared in the manifest.
+      # Nothing else catches this: `tsc` types `options` as an open
+      # record, and `claude plugin validate` reads the manifest and the
+      # source without comparing them.
+      - name: options declared match options read
+        run: npm run check:options
+
+  # Reads each plugin the way the engine will, runs their tests against
+  # the engine itself, and checks the declarations against the build.
+  # All three need the CLI.
+  plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: the declarations match the installed build
+        run: npm run check:types
+
+      - name: the marketplace manifest is well formed
+        run: npm run check:marketplace
+
+      - name: validate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: '1'
+        run: npm run validate
+
+      # `continue-on-error` until it is known whether the test kit needs
+      # credentials in CI; it comes off once the answer is in.
+      - name: test
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: '1'
+        run: npm run test
