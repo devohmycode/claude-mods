@@ -510,7 +510,9 @@ is the one on screen.
 
 The contract is [`types/index.d.ts`](types/index.d.ts); `/plugin-types` copies
 it beside the engine's own declarations, so `$.cockpit` is typed in the session
-you develop in with nothing copied by hand.
+you develop in with nothing copied by hand. `claude-message-mod/` is the first
+plugin to fill it, and its README carries the engine's own words for each of
+these refusals.
 
 ## Options
 

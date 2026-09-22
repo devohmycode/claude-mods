@@ -1,0 +1,44 @@
+{
+  "name": "message",
+  "version": "0.1.0",
+  "description": "What another session sends lands in a tab instead of in the context. A peer's delivery is written to the mailbox under your home directory, listed in the Message tab beside the thread it belongs to, and announced in one line — and the session's transcript does not grow by a byte. The thread draws each message whole, wrapped to the column it has, with a Show more under the long ones that opens the rest in place: reading what was held has to be free, or holding it saved nothing. You read it and decide: Hand to Claude puts it in the context and starts a turn, which is the only moment it costs anything, or the field at the bottom answers it, calling SendMessage in the session's own loop so that no model turn is started to write three words. The left column lists the sessions running on this machine, read from the engine's own register: the name each goes by — the one /rename sets, and the one SendMessage takes — with the folder it works in and whether it is busy, this session named at the head of it and a refresh button (r) for the moment you rename one next door; the footer counts what was sent without a turn, what is held, and the bytes kept out of the transcript, three figures in two units and no total over them. It is the cockpit's fifth tab where a cockpit is seated, and opens a pane of its own where none is. /message opens it, /message hand hands everything held over at once, /message hold turns the holding off for the session, and /message who answers with the register of sessions this one can write to.",
+  "author": {
+    "name": "DevOhMyCode"
+  },
+  "homepage": "https://github.com/devohmycode/claude-mods/tree/main/claude-message-mod",
+  "repository": "https://github.com/devohmycode/claude-mods",
+  "license": "MIT",
+  "keywords": [
+    "message",
+    "inbox",
+    "sessions",
+    "peer",
+    "context",
+    "mailbox",
+    "function-hooks"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "hold": {
+      "type": "boolean",
+      "title": "Hold what other sessions send",
+      "description": "Take a peer's delivery before it is queued: it is written to the mailbox and shown in the tab, and the context does not grow. Off, a delivery goes to the model as it always did and the tab is a record of it rather than its only reader. A session with nobody at the keyboard never holds, whatever this says.",
+      "required": false,
+      "default": true
+    },
+    "toast": {
+      "type": "boolean",
+      "title": "Announce an arrival",
+      "description": "Say the sender and the first line under the prompt when a delivery is held. Off, the only sign is the flag on the tab — which is quiet, and easy to miss for an hour.",
+      "required": false,
+      "default": true
+    },
+    "raise": {
+      "type": "boolean",
+      "title": "Open the tab on an arrival",
+      "description": "Select the Message tab when a delivery lands, rather than flagging it and leaving the view where you left it.",
+      "required": false,
+      "default": false
+    }
+  }
+}

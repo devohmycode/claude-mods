@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.json",
+  // `../claude-cockpit-mod/types` is a dependency of compilation and not of
+  // execution. The contract of `$.cockpit` lives with the cockpit, once, and
+  // this mod reads it from there rather than keeping a copy that would drift;
+  // the call itself sits in a try/catch, so the mod runs with no cockpit
+  // under it and opens a pane of its own instead. Published alone, it finds
+  // the same declarations beside the engine's own, where `/plugin-types`
+  // copies them for every plugin that is seated.
+  "include": [
+    "../types",
+    "../claude-cockpit-mod/types",
+    "hooks",
+    "tests",
+    "types"
+  ]
+}

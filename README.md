@@ -9,6 +9,12 @@ the shape `($, e, next)`.
 - **[claude-cockpit-mod/](claude-cockpit-mod/)** — the first one, built: a
   tabbed pane beside the transcript, and the name `$.cockpit` that the
   other plugins fill.
+- **[claude-message-mod/](claude-message-mod/)** — what other sessions
+  send, held out of the context until you decide otherwise:
+  `session.receive` turns the message away before it costs anything, the
+  thread lives in a mailbox on disk, and a field answers through
+  `SendMessage` without waking the model. Fifth tab of `cockpit`, and the
+  first consumer of the name `$.cockpit`.
 
 ## Installing
 
@@ -21,6 +27,7 @@ From inside a Claude Code session:
 ```
 /plugin marketplace add devohmycode/claude-mods
 /plugin install cockpit@claude-devohmycode-mods
+/plugin install message@claude-devohmycode-mods
 ```
 
 Or from the shell:
@@ -28,6 +35,7 @@ Or from the shell:
 ```bash
 claude plugin marketplace add devohmycode/claude-mods
 claude plugin install cockpit@claude-devohmycode-mods
+claude plugin install message@claude-devohmycode-mods
 ```
 
 Claude Code loads a hooks module only when
