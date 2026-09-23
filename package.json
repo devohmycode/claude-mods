@@ -5,13 +5,13 @@
   "description": "Function-hook mods for Claude Code, and the marketplace that offers them. Each folder is a standalone plugin; this package exists to pin the TypeScript the hooks are checked with and to hold the checks that span both.",
   "type": "module",
   "scripts": {
-    "typecheck": "tsc -p claude-cockpit-mod/tsconfig.json && tsc -p claude-message-mod/tsconfig.json",
+    "typecheck": "tsc -p claude-cockpit-mod/tsconfig.json && tsc -p claude-message-mod/tsconfig.json && tsc -p claude-clauget-mod/tsconfig.json",
     "typecheck:all": "tsc -p tsconfig.json",
     "check:options": "node scripts/check-plugin-options.mjs",
     "check:types": "bash scripts/check-types-version.sh",
     "check:marketplace": "claude plugin validate .claude-plugin/marketplace.json",
-    "validate": "claude plugin validate --strict claude-cockpit-mod && claude plugin validate --strict claude-message-mod",
-    "test": "claude plugin test claude-cockpit-mod && claude plugin test claude-message-mod",
+    "validate": "claude plugin validate --strict claude-cockpit-mod && claude plugin validate --strict claude-message-mod && claude plugin validate --strict claude-clauget-mod",
+    "test": "claude plugin test claude-cockpit-mod && claude plugin test claude-message-mod && claude plugin test claude-clauget-mod",
     "check": "npm run typecheck && npm run check:options && npm run check:marketplace && npm run validate && npm run test"
   },
   "devDependencies": {
