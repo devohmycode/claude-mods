@@ -22,6 +22,12 @@ the shape `($, e, next)`.
   exposes are named where they happen. Out of the box it cuts nothing;
   `/clauget on` turns on levers each measured on a real session, and it
   prints what every one cost beside what it saved.
+- **[context-manager/](context-manager/)** — the waste a session repeats,
+  named while it compounds: a ledger of every tool call, a background audit
+  that asks what had a shorter path to the same result, and a pane where
+  one click fixes, rewords or ignores each finding. Starts from
+  ContextSaver 0.5.0, language choice included, as the base of its next
+  version.
 
 ## Installing
 
@@ -36,6 +42,7 @@ From inside a Claude Code session:
 /plugin install cockpit@claude-devohmycode-mods
 /plugin install message@claude-devohmycode-mods
 /plugin install clauget@claude-devohmycode-mods
+/plugin install contextmanager@claude-devohmycode-mods
 ```
 
 Or from the shell:
@@ -45,6 +52,7 @@ claude plugin marketplace add devohmycode/claude-mods
 claude plugin install cockpit@claude-devohmycode-mods
 claude plugin install message@claude-devohmycode-mods
 claude plugin install clauget@claude-devohmycode-mods
+claude plugin install contextmanager@claude-devohmycode-mods
 ```
 
 Claude Code loads a hooks module only when
