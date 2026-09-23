@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "claude-devohmycode-mods",
-  "description": "Function-hook mods for Claude Code: a tabbed pane beside the transcript, and the messages other sessions send, held out of the context until you say otherwise.",
+  "description": "Function-hook mods for Claude Code: a tabbed pane beside the transcript, the messages other sessions send held out of the context until you say otherwise, and the journal of what every model request of a session read, wrote and produced.",
   "owner": {
     "name": "DevOhMyCode",
     "url": "https://github.com/devohmycode"
@@ -12,11 +12,22 @@
       "source": "./claude-cockpit-mod",
       "description": "One pane of tabs beside the transcript, and the $.cockpit noun other plugins fill: the session's context, cost and models, what it spent and what the plan has left, the prompts this machine has typed, the files Claude touched, the tools it called and the subagents it started.",
       "version": "0.3.0",
-      "author": { "name": "DevOhMyCode" },
+      "author": {
+        "name": "DevOhMyCode"
+      },
       "homepage": "https://github.com/devohmycode/claude-mods/tree/main/claude-cockpit-mod",
       "repository": "https://github.com/devohmycode/claude-mods",
       "license": "MIT",
-      "keywords": ["cockpit", "pane", "tabs", "transcript", "session", "usage", "statistics", "function-hooks"],
+      "keywords": [
+        "cockpit",
+        "pane",
+        "tabs",
+        "transcript",
+        "session",
+        "usage",
+        "statistics",
+        "function-hooks"
+      ],
       "category": "productivity"
     },
     {
@@ -24,11 +35,43 @@
       "source": "./claude-message-mod",
       "description": "What another session sends lands in a tab instead of in the context: session.receive turns the delivery away before it costs a token, the thread lives in a mailbox on disk, and a field answers through SendMessage without starting a model turn.",
       "version": "0.1.0",
-      "author": { "name": "DevOhMyCode" },
+      "author": {
+        "name": "DevOhMyCode"
+      },
       "homepage": "https://github.com/devohmycode/claude-mods/tree/main/claude-message-mod",
       "repository": "https://github.com/devohmycode/claude-mods",
       "license": "MIT",
-      "keywords": ["message", "inbox", "sessions", "peer", "context", "mailbox", "function-hooks"],
+      "keywords": [
+        "message",
+        "inbox",
+        "sessions",
+        "peer",
+        "context",
+        "mailbox",
+        "function-hooks"
+      ],
+      "category": "productivity"
+    },
+    {
+      "name": "clauget",
+      "source": "./claude-clauget-mod",
+      "description": "The scale, then the diet: one line per model request read off the stop chunk of turn.step, the cache misses named where they happen, and a /clauget report of what each provider of the prefix costs. Measures and changes nothing out of the box; /clauget on turns on levers each measured on a real session — result cuts filed whole, a small-prefix explorer, a lighter compaction, economy tiers — and prints its own cost beside every saving.",
+      "version": "0.2.0",
+      "author": {
+        "name": "DevOhMyCode"
+      },
+      "homepage": "https://github.com/devohmycode/claude-mods/tree/main/claude-clauget-mod",
+      "repository": "https://github.com/devohmycode/claude-mods",
+      "license": "MIT",
+      "keywords": [
+        "context",
+        "tokens",
+        "cache",
+        "usage",
+        "measure",
+        "budget",
+        "function-hooks"
+      ],
       "category": "productivity"
     }
   ]

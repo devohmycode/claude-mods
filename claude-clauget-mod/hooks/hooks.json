@@ -1,0 +1,6 @@
+{
+  "description": "The journal of every model request, read off the turn.step stream, and the levers the economy row turns on: the policy on the prefix, the cuts on what enters, the steps, the compaction and the pilot — each decided at a session's start, each counted in the mod's own column",
+  "modules": [
+    "./register.ts"
+  ]
+}
