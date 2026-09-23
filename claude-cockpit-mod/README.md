@@ -37,7 +37,7 @@ would answer the next thing typed with the rail's hotkeys.
 ## Installing
 
 Two things are needed before the mod runs, both because function hooks are
-still early access: **Claude Code 2.1.278 or newer**, and the environment
+still early access: **Claude Code 2.1.280 or newer**, and the environment
 variable that switches the feature on.
 
 From inside a Claude Code session:
@@ -510,7 +510,9 @@ is the one on screen.
 
 The contract is [`types/index.d.ts`](types/index.d.ts); `/plugin-types` copies
 it beside the engine's own declarations, so `$.cockpit` is typed in the session
-you develop in with nothing copied by hand.
+you develop in with nothing copied by hand. `claude-message-mod/` is the first
+plugin to fill it, and its README carries the engine's own words for each of
+these refusals.
 
 ## Options
 

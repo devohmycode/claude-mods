@@ -1,0 +1,4 @@
+{
+  "description": "The Message tab: what another session sent, held out of the context until the person says otherwise, and the field that answers without starting a model turn",
+  "modules": ["./register.ts"]
+}

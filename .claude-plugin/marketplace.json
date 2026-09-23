@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "claude-devohmycode-mods",
-  "description": "Function-hook mods for Claude Code: a tabbed pane beside the transcript, and the $.cockpit noun other plugins fill.",
+  "description": "Function-hook mods for Claude Code: a tabbed pane beside the transcript, and the messages other sessions send, held out of the context until you say otherwise.",
   "owner": {
     "name": "DevOhMyCode",
     "url": "https://github.com/devohmycode"
@@ -17,6 +17,18 @@
       "repository": "https://github.com/devohmycode/claude-mods",
       "license": "MIT",
       "keywords": ["cockpit", "pane", "tabs", "transcript", "session", "usage", "statistics", "function-hooks"],
+      "category": "productivity"
+    },
+    {
+      "name": "message",
+      "source": "./claude-message-mod",
+      "description": "What another session sends lands in a tab instead of in the context: session.receive turns the delivery away before it costs a token, the thread lives in a mailbox on disk, and a field answers through SendMessage without starting a model turn.",
+      "version": "0.1.0",
+      "author": { "name": "DevOhMyCode" },
+      "homepage": "https://github.com/devohmycode/claude-mods/tree/main/claude-message-mod",
+      "repository": "https://github.com/devohmycode/claude-mods",
+      "license": "MIT",
+      "keywords": ["message", "inbox", "sessions", "peer", "context", "mailbox", "function-hooks"],
       "category": "productivity"
     }
   ]

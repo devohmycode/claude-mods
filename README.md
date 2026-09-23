@@ -9,11 +9,17 @@ the shape `($, e, next)`.
 - **[claude-cockpit-mod/](claude-cockpit-mod/)** — the first one, built: a
   tabbed pane beside the transcript, and the name `$.cockpit` that the
   other plugins fill.
+- **[claude-message-mod/](claude-message-mod/)** — what other sessions
+  send, held out of the context until you decide otherwise:
+  `session.receive` turns the message away before it costs anything, the
+  thread lives in a mailbox on disk, and a field answers through
+  `SendMessage` without waking the model. Fifth tab of `cockpit`, and the
+  first consumer of the name `$.cockpit`.
 
 ## Installing
 
 Two things are needed before a mod runs, both because function hooks are
-still early access: **Claude Code 2.1.278 or newer**, and the environment
+still early access: **Claude Code 2.1.280 or newer**, and the environment
 variable that switches the feature on.
 
 From inside a Claude Code session:
@@ -21,6 +27,7 @@ From inside a Claude Code session:
 ```
 /plugin marketplace add devohmycode/claude-mods
 /plugin install cockpit@claude-devohmycode-mods
+/plugin install message@claude-devohmycode-mods
 ```
 
 Or from the shell:
@@ -28,6 +35,7 @@ Or from the shell:
 ```bash
 claude plugin marketplace add devohmycode/claude-mods
 claude plugin install cockpit@claude-devohmycode-mods
+claude plugin install message@claude-devohmycode-mods
 ```
 
 Claude Code loads a hooks module only when
@@ -42,7 +50,7 @@ setx CLAUDE_CODE_ENABLE_FUNCTION_HOOKS 1         # Windows, once and for all
 ```
 
 `claude --version` says which build you are on. The declarations these mods
-are typechecked against were written by 2.1.278, and
+are typechecked against were written by 2.1.280, and
 `types/claude-code.d.ts` names that build on its first line.
 ## Layout
 

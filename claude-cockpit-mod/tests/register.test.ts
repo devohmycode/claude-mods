@@ -118,7 +118,7 @@ function world(
       focused.push(e.id)
     }
 
-    return { value: undefined }
+    return { value: { isPlaced: true as const } }
   })
   on('ui.close', () => ({ value: undefined }))
   on('ui.invalidate', () => ({ value: undefined }))
@@ -563,6 +563,7 @@ describe('register', () => {
       return {
         value: {
           context: { tokens: 120_000, window: 1_000_000, percent: 12 },
+          startedAt: 0,
           rateLimits: [],
           cost: { usd: 1.25 },
         },
@@ -810,6 +811,7 @@ describe('register', () => {
     on('session.usage', () => ({
       value: {
         context: { tokens: 120_000, window: 1_000_000, percent: 12 },
+        startedAt: 0,
         rateLimits: [
           {
             kind: 'five_hour',
@@ -884,6 +886,7 @@ describe('register', () => {
     on('session.usage', () => ({
       value: {
         context: { tokens: 1_000, window: 10_000, percent: 10 },
+        startedAt: 0,
         rateLimits: [],
         cost: { usd: 0 },
       },
@@ -1458,6 +1461,7 @@ describe('register', () => {
     on('session.usage', () => ({
       value: {
         context: { tokens: 0, window: 1_000_000, percent: 0 },
+        startedAt: 0,
         rateLimits: [],
       },
     }))
@@ -1591,6 +1595,7 @@ describe('register', () => {
           percent: 1,
           breakdown: breakdownOf(skillFrontmatter),
         },
+        startedAt: 0,
         rateLimits: [],
         cost: { usd: 0.5 },
       },
@@ -1664,6 +1669,7 @@ describe('register', () => {
             { name: 'b', source: 'plugin', pluginName: 'two', tokens: 20 },
           ]),
         },
+        startedAt: 0,
         rateLimits: [],
         cost: { usd: 0.5 },
       },
