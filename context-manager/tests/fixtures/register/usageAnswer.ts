@@ -22,7 +22,9 @@ export const usageAnswer = (over: { tokens?: number; percent?: number } = {}): S
       gridRows: [],
       model: 'claude-opus-4-6',
       memoryFiles: [{ path: '/work/CLAUDE.md', type: 'project', tokens: 1_200 }],
-      mcpTools: [{ name: 'search', serverName: 'docs', tokens: 3_000, isLoaded: true }, { name: 'fetch', serverName: 'docs', tokens: 400, isLoaded: true }],
+      mcpTools: [{ name: 'search', serverName: 'docs', tokens: 3_000, isLoaded: true }, { name: 'fetch', serverName: 'docs', tokens: 400, isLoaded: true },
+        // Behind ToolSearch: listed with its schema's size, but not in the window until searched for.
+        { name: 'crawl', serverName: 'web', tokens: 1_100_000, isLoaded: false }],
       agents: [{ agentType: 'explorer', source: 'project', tokens: 800 }],
       autoCompactThreshold: 180_000,
       isAutoCompactEnabled: true,

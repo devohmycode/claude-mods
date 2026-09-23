@@ -468,6 +468,11 @@ export const cardOf = (p: Pattern, state: State, n: number, aliases: ReadonlyMap
 
 // Null before the first turn completes: the session's own tokens are 0 then, and a share of nothing is
 // not a figure — a run that cost 24k printed `2394600%` of a denominator that had not been measured yet.
+// The share's denominator, said with it: a plugin loaded mid-session measures only the turns it saw, while
+// every run reads the whole transcript, so a share in the hundreds is honest but needs its span to be read.
+const measuredTurns = (state: State): string =>
+  `${state.turns.length} measured turn${state.turns.length === 1 ? '' : 's'}`
+
 const judgeShare = (state: State): number | null => {
   const total = totalTokens(state)
   return total === 0 ? null : Math.round((state.judge.spent / total) * 1000) / 10
@@ -758,7 +763,7 @@ export const debugDump = (state: State, spoke = false): string => {
     ...patternLines(state),
     `cards ${state.cards.length}${state.cards.length === 0 ? '' : `: ${state.cards.join(', ')}`}`,
     `notes ${state.notes.length} · standing ${state.standing.length} · written ${state.written.length}${state.written.length === 0 ? '' : `: ${state.written.join(', ')}`}`,
-    `judge runs ${j.runs} · spent ${j.spent} tokens (${share === null ? '-' : `${share}%`} of the session) · backoff ${j.backoff} · running ${j.running} · lastAt ${j.lastAtTokens} tokens / turn ${j.lastAtTurn} / row ${j.lastAtSeq} / ${j.lastAtMs}ms · error ${j.error ?? '-'} · focus ${oneLine(j.focus)}`,
+    `judge runs ${j.runs} · spent ${j.spent} tokens (${share === null ? '-' : `${share}%`} of the session's new tokens over ${measuredTurns(state)}) · backoff ${j.backoff} · running ${j.running} · lastAt ${j.lastAtTokens} tokens / turn ${j.lastAtTurn} / row ${j.lastAtSeq} / ${j.lastAtMs}ms · error ${j.error ?? '-'} · focus ${oneLine(j.focus)}`,
     `judge time: ${oneLine(j.time)}`,
     `judge context: ${oneLine(j.context)}`,
     ...judgeRunLines(j.last),

@@ -494,9 +494,12 @@ export function register(on: On, options: PluginOptions = {}): void {
       })
       const tokensOf = (items: readonly { tokens: number }[] | undefined): number => (items ?? []).reduce((n, i) => n + i.tokens, 0)
       const breakdown = u.context.breakdown
+      // Only the MCP schemas in the window: a deferred one is listed with its size but stays behind
+      // ToolSearch until searched for, and summing those read 1.1M of overhead in a window of 1M.
+      const loadedMcp = breakdown?.mcpTools.filter(tool => tool.isLoaded)
       dispatch({
         type: 'overhead',
-        overhead: { memory: tokensOf(breakdown?.memoryFiles), mcp: tokensOf(breakdown?.mcpTools), agents: tokensOf(breakdown?.agents) },
+        overhead: { memory: tokensOf(breakdown?.memoryFiles), mcp: tokensOf(loadedMcp), agents: tokensOf(breakdown?.agents) },
       })
       try {
         // The name and its subcommands are typed, so they never move; only what `/help` reads does.

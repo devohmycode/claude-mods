@@ -415,10 +415,10 @@ describe('patterns', () => {
     expect(totalTokens(state), 'no turn has reported its tokens yet').toBe(0)
     const done = reduce(state, { type: 'judge.done', patterns: [suitePattern], fresh: [], recurred: [], focus: null, time: null, context: null, spent: 24_000, error: null, returned: 0, kept: 0, dropped: [], usage: null })
     expect(done.judge, 'there is nothing for the spend to be 3% of, so the cadence stands').toMatchObject({ spent: 24_000, backoff: 1 })
-    expect(debugDump(done), 'and no share is printed where none was measured').toContain('judge runs 1 · spent 24000 tokens (- of the session)')
+    expect(debugDump(done), 'and no share is printed where none was measured').toContain("judge runs 1 · spent 24000 tokens (- of the session's new tokens over 0 measured turns)")
     expect(paneModel(done, []).header.judgeShare, 'the pane model carries no figure either').toBe(0)
     const measured = reduce({ ...done, turns: [{ ...turnEnd(), turn: 1, calls: 2 }] }, { type: 'judge.done', patterns: done.patterns, fresh: [], recurred: [], focus: null, time: null, context: null, spent: 0, error: null, returned: 0, kept: 0, dropped: [], usage: null })
-    expect(debugDump(measured), 'once a turn is counted the share is a figure again').toContain('spent 24000 tokens (240% of the session)')
+    expect(debugDump(measured), 'once a turn is counted the share is a figure again').toContain("spent 24000 tokens (240% of the session's new tokens over 1 measured turn)")
     expect(measured.judge.backoff, 'and 24k of a 10k session is over the budget').toBe(2)
   })
 
