@@ -15,6 +15,13 @@ the shape `($, e, next)`.
   thread lives in a mailbox on disk, and a field answers through
   `SendMessage` without waking the model. Fifth tab of `cockpit`, and the
   first consumer of the name `$.cockpit`.
+- **[claude-clauget-mod/](claude-clauget-mod/)** — the scale before the
+  diet: `turn.step` streams through one hook whose stop chunk carries what
+  each model request read from the cache, wrote to it, carried and
+  produced, so a session has a line per request and the cache misses it
+  exposes are named where they happen. Out of the box it cuts nothing;
+  `/clauget on` turns on levers each measured on a real session, and it
+  prints what every one cost beside what it saved.
 
 ## Installing
 
@@ -28,6 +35,7 @@ From inside a Claude Code session:
 /plugin marketplace add devohmycode/claude-mods
 /plugin install cockpit@claude-devohmycode-mods
 /plugin install message@claude-devohmycode-mods
+/plugin install clauget@claude-devohmycode-mods
 ```
 
 Or from the shell:
@@ -36,6 +44,7 @@ Or from the shell:
 claude plugin marketplace add devohmycode/claude-mods
 claude plugin install cockpit@claude-devohmycode-mods
 claude plugin install message@claude-devohmycode-mods
+claude plugin install clauget@claude-devohmycode-mods
 ```
 
 Claude Code loads a hooks module only when

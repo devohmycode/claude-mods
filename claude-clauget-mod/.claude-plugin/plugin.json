@@ -1,0 +1,137 @@
+{
+  "name": "clauget",
+  "version": "0.2.0",
+  "description": "The scale, then the diet — and the diet only where the scale says it pays. Each model request inside a turn streams through one hook, whose stop chunk carries the four token counters and the model that answered, so the journal has a line per step, the main loop's and every subagent's apart, and names the cache misses where they happen. /clauget opens the report: the window and the cost, the bill of the prefix by provider with how often each provider's tools were called, the break-even of deferring, the instruction files, and every lever with what it saved and what it cost. Out of the box the mod measures and changes nothing. /clauget on, off or strict turns the levers on from the next session: a policy on the prefix decided once and never moved mid-session, tool results cut to the shape of their fat and filed whole so one Read undoes a cut, a small-prefix explorer agent, a lighter transcript for the compaction, economy tiers that tighten with the plan window, a forecast of when it fills, and prompts deferred to its reset. Each lever was measured on a real session; the ones that lost were closed and are named in the README. Nothing the mod writes reaches the model unless a lever puts it there, and then it is counted in the mod's own column.",
+  "author": {
+    "name": "DevOhMyCode"
+  },
+  "homepage": "https://github.com/devohmycode/claude-mods/tree/main/claude-clauget-mod",
+  "repository": "https://github.com/devohmycode/claude-mods",
+  "license": "MIT",
+  "keywords": [
+    "context",
+    "tokens",
+    "cache",
+    "usage",
+    "measure",
+    "budget",
+    "function-hooks"
+  ],
+  "userConfig": {
+    "ticket": {
+      "type": "string",
+      "title": "Where the ticket is written",
+      "description": "The per-turn line is a dim transcript row the model never reads, and the per-step lines go to the debug log. `turn` writes the turn line to the transcript and the step lines to the debug log; `debug` keeps both out of the transcript, which is what a session watched by nobody wants; `off` writes neither and leaves the journal to the report alone. Whatever this says, nothing the mod writes is ever sent to the model: a ticket that entered the context would cost what it measures.",
+      "required": false,
+      "default": "turn",
+      "options": [
+        "turn",
+        "debug",
+        "off"
+      ]
+    },
+    "journal": {
+      "type": "boolean",
+      "title": "Keep the journal on disk",
+      "description": "Write the session's steps to ~/.claude/clauget/<session>.json at the end of each turn, so a report can compare two sessions at the same task; keep the machine's usage counters in ~/.claude/clauget/usage.json, merged on each write so two sessions at once keep each other's calls; and leave each /clauget report beside its journal as <session>.report.txt. Off, the journal lives in the session's store alone, and no counter is kept. The file is rewritten whole each turn and never removed: $.fs has no delete, so nothing here promises a purge.",
+      "required": false,
+      "default": true
+    },
+    "bashCap": {
+      "type": "number",
+      "title": "Cap on Bash output, in bytes",
+      "description": "Off at 0, the default: the mod then rewrites nothing and every tool result reaches the model as the engine made it. Above 0, a Bash stdout longer than this many bytes is cut to its head and its tail with one line between them saying how many lines and bytes went — before it enters the transcript, never after, so no cache is lost to it. This is the bench of the one rewrite the mod makes, proving the rewrite takes; the marker line counts in the mod's own column as bytes shown to the model.",
+      "required": false,
+      "default": 0
+    },
+    "levers": {
+      "type": "string",
+      "title": "Levers on the prefix",
+      "description": "Off, the default: the mod decides nothing, and every tool description, listing, context block and reminder goes through as the engine made it. On, a policy is decided once at each session's start from the usage counters, and never moved after: a provider's tools the history says are not worth their schemas go behind ToolSearch, one whose deferral lost comes back, a tool that serves most sessions stays in front; an agent type this project never dispatched is not offered; the instruction files outside the working directory are left out; a reminder repeated word for word goes brief after its first time; and, when the model has to search for tools it used to see, one short block says which. Nothing is judged unused before ten sessions of history. A change here takes effect at the next session.",
+      "required": false,
+      "default": "off",
+      "options": [
+        "off",
+        "on"
+      ]
+    },
+    "hideAgents": {
+      "type": "string",
+      "title": "Agent types never offered",
+      "description": "With the levers on: agent types to withdraw from the model's listing and from dispatch, whatever the history says, separated by commas; write !name to keep one the history would withdraw. The Agent tool itself is never removed.",
+      "required": false,
+      "default": ""
+    },
+    "hideCommands": {
+      "type": "string",
+      "title": "Commands hidden from the menu",
+      "description": "With the levers on: slash commands to leave out of the typeahead and /help, separated by commas. A hidden command still runs when typed in full. Only the ones listed here are hidden: a command the person may type is theirs to hide.",
+      "required": false,
+      "default": ""
+    },
+    "cuts": {
+      "type": "string",
+      "title": "Cuts on what enters",
+      "description": "Off, the default: every tool result and every prompt goes in as the engine made it. On, from the next session: a result is cut to the shape of its fat at the moment it enters — Bash to its head, tail and error lines, Grep to so many matches per file, an MCP tool's JSON to its first items, a subagent's report to its conclusion — and filed whole under ~/.claude/clauget/files, the excerpt naming the path so one Read undoes the cut; a result that cannot be filed is not cut. A Read of an unchanged window is answered as unchanged without running the tool; a Read overlapping lines already read gets the new lines only; a Read after an edit gets the changed span; a long file read whole the first time gets its head and a table of its declarations; noise of a known shape (colour codes, progress bars, repeats) goes; a log pasted into a prompt is filed. The report counts the rereads of what was cut: the measure of whether a cut was right.",
+      "required": false,
+      "default": "off",
+      "options": [
+        "off",
+        "on"
+      ]
+    },
+    "steps": {
+      "type": "string",
+      "title": "Levers on the steps",
+      "description": "Off, the default. On, from the next session: a read-only explorer agent with a small context (Read, Grep, Glob, no MCP server, no skill, no CLAUDE.md, a small model, twelve turns at most) is offered, and proposed once a session on an open-ended search; the subagent types listed below run on a smaller model when their caller named none; a Bash output identical byte for byte to an earlier one of the turn is named as such; and a model switch that would rewrite a warm cache above ten cents asks first. The report prints each with what it saved and what it cost. The effort of a step is never touched: lowering it mid-turn was measured to make the provider rewrite its cached messages.",
+      "required": false,
+      "default": "off",
+      "options": [
+        "off",
+        "on"
+      ]
+    },
+    "smallModelAgents": {
+      "type": "string",
+      "title": "Subagent types on the smaller model",
+      "description": "With the levers on the steps: the subagent types moved to the smaller model when their caller named no model, separated by commas. The read-only ones by default, where a smaller model loses least.",
+      "required": false,
+      "default": "Explore, clauget:explorer"
+    },
+    "breaker": {
+      "type": "string",
+      "title": "Circuit breaker",
+      "description": "Off, the default. On, from the next session: a turn that runs past twice the median turn's steps, and never fewer than thirty, is stopped between two steps — never during a tool — and says how to resume. No count of steps avoided is shown: nobody knows how many would have followed.",
+      "required": false,
+      "default": "off",
+      "options": [
+        "off",
+        "on"
+      ]
+    },
+    "compaction": {
+      "type": "string",
+      "title": "Levers on the compaction",
+      "description": "Off, the default. On, from the next session: at each compaction — the one moment the cache is thrown away anyway — the large tool results handed to the summarizer are filed and replaced by their path (the text a person typed is never touched, no message is added or dropped); a fork of the still-warm cache lists the facts not to lose and the files read, which become the summarizer's instructions; no summary is precomputed while the person works; after it, a file read before is served first as the windows read then. The report shows the profitable point of a compaction beside the engine's threshold, and proposes it once passed; auto also compacts, after a turn ends, never during one. A countdown of the warm cache sits in the status line after each turn; a resumed session shows its re-write price beside the brief a fresh one could start from. The fork is counted in the mod's own column.",
+      "required": false,
+      "default": "off",
+      "options": [
+        "off",
+        "on",
+        "auto"
+      ]
+    },
+    "economy": {
+      "type": "string",
+      "title": "Economy",
+      "description": "The one lever, the row /clauget on, off and strict write. Every other lever left off follows it: on turns the levers on the prefix, the cuts, the levers on the steps and the compaction on; strict also compacts by itself and arms the circuit breaker. A lever turned on in its own row stays on whatever this says. From the next session: a session keeps the policy it started with.",
+      "required": false,
+      "default": "off",
+      "options": [
+        "off",
+        "on",
+        "strict"
+      ]
+    }
+  }
+}
