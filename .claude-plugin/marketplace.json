@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "claude-devohmycode-mods",
-  "description": "Function-hook mods for Claude Code: a tabbed pane beside the transcript, the messages other sessions send held out of the context until you say otherwise, and the journal of what every model request of a session read, wrote and produced.",
+  "description": "Function-hook mods for Claude Code: a tabbed pane beside the transcript, the messages other sessions send held out of the context until you say otherwise, and the journal of what every model request of a session read, wrote and produced, and the waste a session repeats named on a card you fix in one click.",
   "owner": {
     "name": "DevOhMyCode",
     "url": "https://github.com/devohmycode"
@@ -70,6 +70,28 @@
         "usage",
         "measure",
         "budget",
+        "function-hooks"
+      ],
+      "category": "productivity"
+    },
+    {
+      "name": "contextmanager",
+      "source": "./context-manager",
+      "description": "Catches what bogs a session down: a ledger of every tool call, a background audit that names the behaviours Claude keeps repeating (the whole suite after each edit, the same file read again, a log dumped into context), and a pane where one click tells Claude to stop, rewords the fix, or ignores it. Reads in English, French, Spanish, German, Chinese and Japanese.",
+      "version": "0.1.0",
+      "author": {
+        "name": "DevOhMyCode"
+      },
+      "homepage": "https://github.com/devohmycode/claude-mods/tree/main/context-manager",
+      "repository": "https://github.com/devohmycode/claude-mods",
+      "license": "MIT",
+      "keywords": [
+        "context",
+        "waste",
+        "audit",
+        "ledger",
+        "pane",
+        "i18n",
         "function-hooks"
       ],
       "category": "productivity"

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <title>ContextManager</title>
+  <!-- The pane's mark (hooks/core/logo.ts) at scale: four sliders, knobs violet and amber in turn. -->
+  <g fill="#64748b">
+    <rect x="4" y="21" width="120" height="6" rx="3"/>
+    <rect x="4" y="53" width="120" height="6" rx="3"/>
+    <rect x="4" y="85" width="120" height="6" rx="3"/>
+    <rect x="4" y="117" width="120" height="6" rx="3"/>
+  </g>
+  <rect x="16" y="4" width="32" height="26" rx="6" fill="#8b5cf6"/>
+  <rect x="64" y="36" width="32" height="26" rx="6" fill="#f59e0b"/>
+  <rect x="80" y="68" width="32" height="26" rx="6" fill="#8b5cf6"/>
+  <rect x="32" y="100" width="32" height="26" rx="6" fill="#f59e0b"/>
+</svg>
