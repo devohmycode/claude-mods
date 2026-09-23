@@ -147,7 +147,7 @@ function world(
   on('fs.list', () => ({ value: [] }))
   on('fs.read', () => ({ value: '' }))
 
-  on('ui.open', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.close', () => ({ value: undefined }))
   on('ui.invalidate', () => ({ value: undefined }))
   on('ui.toast', (_$, e) => {

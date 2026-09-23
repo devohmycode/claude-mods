@@ -87,7 +87,7 @@ function world(on: Parameters<typeof mock.clock>[0]): void {
   on('fs.list', () => ({ value: [] }))
   on('fs.read', () => ({ value: '' }))
 
-  on('ui.open', () => ({ value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.close', () => ({ value: undefined }))
   on('ui.invalidate', () => ({ value: undefined }))
   on('ui.toast', () => ({ value: undefined }))

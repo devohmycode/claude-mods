@@ -261,7 +261,7 @@ function world(
   on('ui.open', (_$, e) => {
     opened.push(e.id)
 
-    return { value: undefined }
+    return { value: { isPlaced: true as const } }
   })
   on('ui.close', () => ({ value: undefined }))
   on('ui.invalidate', () => ({ value: undefined }))

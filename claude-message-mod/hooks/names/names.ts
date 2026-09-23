@@ -192,7 +192,10 @@ export const SEND_SUMMARY = 'answer from the Message tab'
  * Remote Control prompt are work the session was waiting for, and holding
  * one would stop that work rather than save a context.
  */
-export const HELD_KINDS = ['peer', 'peer-send-message'] as const
+//
+// A pattern rather than a list: since 2.1.280 the two kinds belong to two
+// shapes of origin, and a list in a matcher cannot span both.
+export const HELD_KINDS = /^peer(?:-send-message)?$/
 
 /**
  * The folder the mailbox sits in, under the person's home: one folder per

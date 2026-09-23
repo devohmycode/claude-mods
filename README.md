@@ -19,7 +19,7 @@ the shape `($, e, next)`.
 ## Installing
 
 Two things are needed before a mod runs, both because function hooks are
-still early access: **Claude Code 2.1.278 or newer**, and the environment
+still early access: **Claude Code 2.1.280 or newer**, and the environment
 variable that switches the feature on.
 
 From inside a Claude Code session:
@@ -50,7 +50,7 @@ setx CLAUDE_CODE_ENABLE_FUNCTION_HOOKS 1         # Windows, once and for all
 ```
 
 `claude --version` says which build you are on. The declarations these mods
-are typechecked against were written by 2.1.278, and
+are typechecked against were written by 2.1.280, and
 `types/claude-code.d.ts` names that build on its first line.
 ## Layout
 

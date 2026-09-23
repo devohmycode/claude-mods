@@ -637,7 +637,9 @@ export function register(on: On, options: PluginOptions): void {
 
     host ??= {
       invalidate: () => beneath.ui.invalidate('ui.render'),
-      openPane: pane => beneath.ui.open(pane),
+      // Whether the pane was drawn at once or waits is the engine's to say
+      // (2.1.280); either way it is open, which is all this caller needs.
+      openPane: pane => beneath.ui.open(pane).then(() => undefined),
       closePane: id => beneath.ui.close({ id }),
       toast: text => beneath.ui.toast(text),
       now: () => beneath.clock.now(),
