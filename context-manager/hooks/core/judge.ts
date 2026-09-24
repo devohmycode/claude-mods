@@ -7,7 +7,7 @@ import { totalTokens } from './patterns'
 import { collapseWs, median } from './text'
 import {
   ALTERNATIVE_MAX, JUDGE_LEDGER_ROWS, JUDGE_MIN_GAP_MS, JUDGE_MIN_NEW_ROWS, JUDGE_MIN_NEW_TOKENS,
-  JUDGE_MIN_ROWS, JUDGE_MIN_TURNS, KIND_MAX, MAX_BEHAVIORAL_FINDINGS, MAX_FINDINGS, MAX_PATTERNS,
+  JUDGE_MIN_ROWS, JUDGE_MIN_TURNS, KIND_MAX, MAX_BEHAVIORAL_FINDINGS, MAX_FINDINGS, MAX_PATTERNS, TUNING,
 } from './types'
 import type { ArtifactKind, Category, Finding, JudgeUsage, Loop, Pattern, Proposal, Row, Signature, State } from './types'
 
@@ -103,7 +103,7 @@ Four suite runs with an install or a migration between every pair, and \`agents 
 AGENTS lists \`a3 | w3 | check:C3 | sonnet | 1 | 1.7m | 48k | edits 0 | checks 4 | reads 0 | report 1600ch | answer\` and \`a7 | w3 | check:C4 | …\` alike, and no row of theirs carries \`err\`: \`{"id":"multi-agent:check-loops-for-shell-steps","kind":"Claude keeps spawning an agent per chunk whose only job is to run four passing check commands","evidence":["agent:a3","agent:a7"],"signature":null,"alternative":"Run a stage's checks as a shell step of the workflow script or inside the reviewer; spawn an agent only for work that needs judgment.","confidence":0.85,"est_tokens_per_turn":48000}\`
 Three \`review:*\` loops of one run, each \`edits 0\` with outcome \`3 low\`, a fix loop after each: \`{"id":"multi-agent:review-rounds-that-find-only-lows","kind":"Claude keeps running a full review round after every fix although the last two found only low findings","evidence":["agent:a9","agent:a12"],"signature":null,"alternative":"Route only medium-or-higher review findings to a fix round; end the stage when a review returns lows alone.","confidence":0.8}\`
 
-## KNOWN PATTERNS — \`id | kind | decision @ turn | previous\`. Reuse these ids; never mint a second id or signature for waste listed here.
+## KNOWN PATTERNS — \`id | kind | decision @ turn | previous\`. Reuse these ids; never mint a second id or signature for waste listed here. A line ending \`found by code\` is counted by a deterministic check that already cites every occurrence: never report that behaviour, under its id or any other.
 {{KNOWN_PATTERNS}}
 
 ## DECISIONS — \`id | key | keep|steer|kill @ turn\`, then previous-session keeps. A \`keep\` key is off limits under any id this session.
@@ -134,8 +134,8 @@ Return the JSON object only.
 
 // Turns and tokens: the ordinary session, where the judge runs between turns.
 const turnGate = (state: State): boolean =>
-  totalTokens(state) - state.judge.lastAtTokens >= JUDGE_MIN_NEW_TOKENS * state.judge.backoff &&
-  state.turn - state.judge.lastAtTurn >= JUDGE_MIN_TURNS
+  totalTokens(state) - state.judge.lastAtTokens >= JUDGE_MIN_NEW_TOKENS * state.judge.backoff * TUNING[state.sensitivity].tokens &&
+  state.turn - state.judge.lastAtTurn >= Math.max(1, JUDGE_MIN_TURNS + TUNING[state.sensitivity].turns)
 
 // Rows and wall time: one agentic turn can run for hours, and `turn.complete` is no cadence inside it.
 const rowGate = (state: State, now: number): boolean =>
@@ -387,11 +387,11 @@ const labelOf = (value: unknown, index: number): string => {
   return ID_SHAPE.test(id) ? id : `#${index + 1}`
 }
 
-const capFindings = (reviewed: readonly Reviewed[]): Sifted =>
+const capFindings = (reviewed: readonly Reviewed[], max: number = MAX_FINDINGS): Sifted =>
   reviewed.reduce<Sifted>((kept, item) => {
     const dropped = (reason: string): Sifted => ({ findings: kept.findings, dropped: [...kept.dropped, `${item.label}: ${reason}`] })
     if (!('finding' in item)) return dropped(item.reason)
-    if (kept.findings.length >= MAX_FINDINGS) return dropped(`over MAX_FINDINGS (${MAX_FINDINGS})`)
+    if (kept.findings.length >= max) return dropped(`over MAX_FINDINGS (${max})`)
     if (item.finding.signature === null && kept.findings.filter(k => k.signature === null).length >= MAX_BEHAVIORAL_FINDINGS) {
       return dropped(`over MAX_BEHAVIORAL_FINDINGS (${MAX_BEHAVIORAL_FINDINGS})`)
     }
@@ -437,7 +437,7 @@ export const parseReply = (text: string, state: State, aliases: ReadonlyMap<stri
     const result = findingOf(value, state, visible, aliases)
     return typeof result === 'string' ? { label, reason: result } : { label, finding: result }
   })
-  const sifted = capFindings(reviewed)
+  const sifted = capFindings(reviewed, Math.min(MAX_FINDINGS, TUNING[state.sensitivity].findings))
   const noted = sifted.findings.flatMap(capNotes)
   return { ...sifted, dropped: [...overlong, ...noted, ...sifted.dropped], focus, ...said, returned: raw.length }
 }
@@ -449,8 +449,10 @@ const patternOf = (f: Finding): Pattern => ({
   hits: [...f.evidence], decision: null, decidedAtTurn: null, instruction: null, openedAtTurn: null, ignored: 0,
 })
 
+// The title is the finding's too: a pattern remembered from a session in another language would
+// otherwise keep its old words above a `why` and a fix written in the language chosen now.
 const updatedWith = (p: Pattern, f: Finding): Pattern => ({
-  ...p, why: f.why, alternative: f.alternative, proposal: f.proposal, confidence: f.confidence,
+  ...p, kind: f.kind, why: f.why, alternative: f.alternative, proposal: f.proposal, confidence: f.confidence,
   estTokensPerTurn: f.estTokensPerTurn, hits: unique([...p.hits, ...f.evidence]),
 })
 

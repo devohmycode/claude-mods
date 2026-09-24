@@ -1,3 +1,4 @@
+import { isDetected } from './detect'
 import { SPAWN_SINK, agentAliases, aliasOf, pairKey, sinks } from './evidence'
 import { median } from './text'
 import { AGENTS_ROWS, JUDGE_LEDGER_ROWS } from './types'
@@ -196,7 +197,8 @@ export const sinksBlock = (rows: readonly Row[], measure: Measure, loops: readon
 export const knownPatternsBlock = (state: State): string =>
   block(state.patterns.map(p => {
     const previous = p.lastDecision !== null && p.decision === null ? ` | previous: ${p.lastDecision}` : ''
-    return `${p.id} | ${p.kind} | ${p.decision ?? '-'} @ ${p.decidedAtTurn ?? '-'}${previous}`
+    const code = isDetected(p.id) ? ' | found by code' : ''
+    return `${p.id} | ${p.kind} | ${p.decision ?? '-'} @ ${p.decidedAtTurn ?? '-'}${previous}${code}`
   }))
 
 /** DECISIONS: this session's decisions, then the keys kept in a previous session. */

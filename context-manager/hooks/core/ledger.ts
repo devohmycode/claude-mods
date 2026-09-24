@@ -11,8 +11,9 @@ const RESERVED = ['tool', 'tool_use_id', 'agentId', 'consent'] as const
 
 const HEAD_MAX = 80   // characters of result.text quoted as evidence (Row.head)
 
-// A leading `cd <dir> &&`, `VAR=value`, `timeout <duration>` or `time` is noise in front of the command that matters.
-const NOISE = /^(?:cd\s+[^\s&|;]+\s*&&\s*|[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)\s+|timeout\s+\d+[smhd]?\s+|time\s+)/
+// A leading `cd <dir> &&` (the dir quoted or not, since a path with a space is quoted), `VAR=value`,
+// `timeout <duration>` or `time` is noise in front of the command that matters.
+const NOISE = /^(?:cd\s+(?:"[^"]*"|'[^']*'|[^\s&|;]+)\s*&&\s*|[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)\s+|timeout\s+\d+[smhd]?\s+|time\s+)/
 
 // `a && b`, `a; b`, `a || b`: one call can carry several commands, and quoting is not worth parsing.
 const CHAIN = /&&|\|\||;/
@@ -80,7 +81,9 @@ const segmentClass = (segment: string): CommandClass => {
   return tableClass(script) ?? SCRIPTS[headToken(script)] ?? 'other'
 }
 
-const segmentsOf = (command: string): string[] => collapseWs(command).split(CHAIN)
+// A line break separates two commands as `;` does: `cd dir` on one line and the command on the next is how a
+// script is often written, and collapsing the break first would glue the two into one command nobody ran.
+const segmentsOf = (command: string): string[] => command.split(/\r?\n/).flatMap(line => collapseWs(line).split(CHAIN))
 
 /** Classifies a shell command by what it does, seeing through cd, env, timeout, runner prefixes and `&&`/`;`/`||` chains. */
 export const classOf = (command: string): CommandClass =>
@@ -96,10 +99,11 @@ const canonicalOf = (command: string): string =>
 export const normalize = (tool: string, input: unknown): { key: string; cls: CommandClass } => {
   const args = asRecord(input)
   if (tool === 'Bash') {
-    const command = collapseWs(asString(args.command) ?? '')
-    const cls = classOf(command)
+    // Classified with its line breaks, which separate commands; keyed without them, which are layout.
+    const raw = asString(args.command) ?? ''
+    const cls = classOf(raw)
     // An `other` command has no segment that named something: the whole pipeline is the key.
-    return { key: `${cls}:${cls === 'other' ? command : canonicalOf(command)}`.slice(0, KEY_MAX), cls }
+    return { key: `${cls}:${cls === 'other' ? collapseWs(raw) : canonicalOf(raw)}`.slice(0, KEY_MAX), cls }
   }
   if (FILE_TOOLS.includes(tool)) {
     const path = pathArg(args)

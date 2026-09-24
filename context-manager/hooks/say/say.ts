@@ -85,6 +85,7 @@ export function sayOf(tag: unknown): Texts {
     command: { ...EN.command, ...some.command },
     categories: { ...EN.categories, ...some.categories },
     judge: { ...EN.judge, ...some.judge },
+    detect: { ...EN.detect, ...some.detect },
     config: { ...EN.config, ...some.config },
   }
 }

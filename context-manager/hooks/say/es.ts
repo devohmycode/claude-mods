@@ -133,10 +133,10 @@ export const ES: PartialTexts = {
   },
 
   command: {
-    description: 'ContextManager: mostrar u ocultar el panel · check | fix [n] [texto] | ignore <n> | debug | reset',
-    argumentHint: '[check | fix [n] [texto] | ignore <n> | debug | reset]',
+    description: 'ContextManager: mostrar u ocultar el panel · check | fix [n] [texto] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset',
+    argumentHint: '[check | fix [n] [texto] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]',
 
-    usage: 'Uso: /manager [check | fix [n] [texto] | ignore <n> | debug | reset]',
+    usage: 'Uso: /manager [check | fix [n] [texto] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]',
     fixUsage: 'Uso: /manager fix [n] [instrucción] (un número al principio indica la tarjeta que numera el panel; sin número: la tarjeta con el campo Corregir… abierto, si no la tarjeta 1)',
     paneShown: 'Panel de ContextManager visible',
     paneHidden: 'Panel de ContextManager oculto',
@@ -192,6 +192,32 @@ Everything a machine matches is never translated and stays exactly as specified 
     kindPrefix: 'Claude sigue ',
     instruction: text => `Instrucción del usuario (vía ContextManager): ${text}`,
     kill: (kind, alternative) => `Detén este comportamiento durante el resto de la sesión: ${kind}. A partir de ahora: ${alternative}`,
+  },
+
+  detect: {
+    rereadKind: path => `Claude sigue releyendo ${path} sin que nada lo haya cambiado entre medias`,
+    rereadWhy: veces => `Leído ${cuenta(veces, 'vez', 'veces')}, sin ninguna edición, instalación ni formateador que pudiera cambiar el archivo entre lecturas.`,
+    rereadFix: path => `Trabaja con lo que ya leíste de ${path}; vuelve a leerlo solo después de que cambie, y entonces solo las líneas que necesites.`,
+    fullSuiteKind: command => `Claude sigue ejecutando toda la suite \`${command}\` tras editar un solo archivo`,
+    fullSuiteWhy: veces => `${cuenta(veces, 'ejecución completa', 'ejecuciones completas')}, cada una justo después de editar un solo archivo; la primera ejecución y la que precede a un commit no cuentan.`,
+    fullSuiteFix: 'Ejecuta solo los tests del archivo que cambiaste y, al terminar la fase, la suite completa una vez.',
+    fullSuiteRuleTitle: 'Tests dirigidos',
+    fullSuiteRule: 'Ejecuta solo los tests de los archivos que cambiaste; ejecuta la suite completa una vez al final de cada fase.',
+    sameSearchKind: search => `Claude sigue repitiendo la misma búsqueda: ${search}`,
+    sameSearchWhy: veces => `${cuenta(veces, 'búsqueda idéntica', 'búsquedas idénticas')} sin ediciones entre ellas: cada una encontró lo mismo que la anterior.`,
+    sameSearchFix: 'Reutiliza el resultado de una búsqueda que ya hiciste; repítela solo después de que cambien archivos.',
+    logDumpKind: command => `Claude sigue volcando un log entero con \`${command}\``,
+    logDumpWhy: (veces, chars) => `${cuenta(veces, 'ejecución', 'ejecuciones')} de ${chars} caracteres o más cada una, leídas enteras en lugar de filtradas.`,
+    logDumpFix: "Filtra un log antes de leerlo: pásalo por grep -nE 'ERROR|FAIL|Traceback' y tail -n 50.",
+    logDumpRuleTitle: 'Logs filtrados',
+    logDumpRule: "Filtra los logs antes de leerlos (grep -nE 'ERROR|FAIL|Traceback', tail -n 50); nunca leas un log entero.",
+    prefixKind: {
+      model: 'Claude sigue cambiando de modelo a mitad de sesión, y cada cambio reescribe la caché del prompt',
+      effort: 'Claude sigue cambiando el nivel de esfuerzo a mitad de sesión, y cada cambio reescribe la caché del prompt',
+    },
+    prefixWhy: (veces, turnos, tokens) =>
+      `${cuenta(veces, 'cambio')} (turno${turnos.includes(',') ? 's' : ''} ${turnos})${tokens === null ? '' : `; los pasos que los siguieron escribieron ~${tokens} tokens más en la caché que un paso normal`}.`,
+    prefixFix: 'Mantén un solo modelo y un solo nivel de esfuerzo durante el resto de la sesión; cámbialos entre sesiones o justo después de un /compact.',
   },
 
   config: {

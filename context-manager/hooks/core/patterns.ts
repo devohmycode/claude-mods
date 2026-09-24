@@ -1,15 +1,19 @@
 import { say } from '../say'
+import { isApplicable } from './apply'
+import { infoParts } from './info'
+import { extraCache, isDetected } from './detect'
 import { agentAliases, aliasOf, baseline, foldRows, rowsOf, sinks, sumOf } from './evidence'
 import { activeRuns, countRow } from './spawns'
-import { collapseWs, duration, instructionOf, killPrompt, median, pctOf } from './text'
+import { collapseWs, duration, instructionOf, killPrompt, median, pctOf, quantile } from './text'
 import {
-  ALTERNATIVE_MAX, CARD_EVIDENCE, DEBUG_MAX_DROPPED, DEBUG_MAX_LINES, DEBUG_MAX_PATTERNS, FILE_TOOLS,
-  JUDGE_BUDGET_SHARE, JUDGE_MAX_BACKOFF, KEY_MAX, KIND_MAX, LOOP_CAP, MAIN_AGENT, MAX_PATTERNS, NO_CALLS, ROW_CAP,
-  SETTLE_TURNS, TREND_TURNS, initialState,
+  ALTERNATIVE_MAX, APPLY_MAX_FAILURES, CARD_EVIDENCE, DEBUG_MAX_DROPPED, DEBUG_MAX_LINES, DEBUG_MAX_PATTERNS, FILE_TOOLS,
+  JUDGE_BUDGET_SHARE, JUDGE_EMPTY_RUNS, JUDGE_MAX_BACKOFF, KEY_MAX, KIND_MAX, LOOP_CAP, MAIN_AGENT, MAX_PATTERNS, NO_CALLS, PREFIX_BREAKS_CAP,
+  PREFIX_SAMPLES, ROW_CAP, SETTLE_TURNS, TREND_TURNS, initialState,
 } from './types'
 import type {
-  Action, Artifact, BandModel, Card, Choice, CommandClass, DecidedRow, Evidence, Header, JournalEntry, JudgeRun,
-  JudgeUsage, Loop, PaneModel, Pattern, Proposal, Row, Signature, Sinks, State, StoredPattern, Tokens, TurnStat,
+  Action, Artifact, BandModel, Card, Choice, CommandClass, CompactionReport, DecidedRow, Evidence, Header, JournalEntry, JudgeRun,
+  JudgeUsage, Loop, PaneModel, Pattern, Prefix, PrefixCause, Proposal, Row, Signature, Sinks, State, StoredPattern, Tokens,
+  TurnStat,
 } from './types'
 
 // The `:offset-limit` slice `normalize` appends to a Read key: the path is what the details name.
@@ -88,8 +92,33 @@ export const turnsToCompaction = (state: State): number | null => {
   return perTurn === 0 ? null : Math.round(left / perTurn)
 }
 
+/**
+ * The run to compaction at the fast and at the slow pace of the recent turns: the upper and the lower quartile
+ * of the window's growth over the last TREND_TURNS turns. Widened to hold the median estimate, which reads a
+ * shorter span; null when fewer than three turns grew, or when both ends say the same.
+ */
+export const turnsRange = (state: State): { low: number; high: number } | null => {
+  const left = tokensToCompaction(state)
+  const seen = contexts(state).slice(-TREND_TURNS)
+  const growth = seen.slice(1).map((tokens, at) => tokens - (seen[at] ?? 0)).filter(step => step > 0)
+  if (left === null || left <= 0 || growth.length < GROWTH_SAMPLES) return null
+  const fast = quantile(growth, 0.75)
+  const slow = quantile(growth, 0.25)
+  if (fast <= 0 || slow <= 0) return null
+  const mid = turnsToCompaction(state)
+  const low = Math.min(Math.round(left / fast), mid ?? Infinity)
+  const high = Math.max(Math.round(left / slow), mid ?? 0)
+  return low === high ? null : { low, high }
+}
+
+// A settlement's saving is credited to its pattern too, so the project's history can say which fix paid.
+const credited = (s: Settle): Pattern =>
+  s.ms === 0 && s.chars === 0
+    ? s.pattern
+    : { ...s.pattern, credited: { ms: (s.pattern.credited?.ms ?? 0) + s.ms, chars: (s.pattern.credited?.chars ?? 0) + s.chars } }
+
 const applySettlements = (state: State, list: readonly Settle[]): Pick<State, 'patterns' | 'cards' | 'saved'> => ({
-  patterns: list.map(s => s.pattern),
+  patterns: list.map(credited),
   cards: list.reduce<string[]>((cards, s) => (s.requeue === null ? cards : queueCard(cards, s.requeue)), [...state.cards]),
   saved: {
     ms: list.reduce((ms, s) => ms + s.ms, state.saved.ms),
@@ -281,9 +310,13 @@ const applyJudgeDone = (state: State, a: Extract<Action, { type: 'judge.done' }>
   // A session decision is never lost, even when the judge's registry omits it.
   const patterns = [...reported, ...state.patterns.filter(p => isDecided(p) && patternById(reported, p.id) === undefined)]
   const wanted = [...a.fresh.filter(id => patternById(patterns, id)?.decision === null), ...marked]
-  const added = wanted.filter((id, i) => wanted.indexOf(id) === i && !state.cards.includes(id))
+  // A muted behaviour is still counted, never carded: the project said three times it is not waste here.
+  const added = wanted.filter((id, i) => wanted.indexOf(id) === i && !state.cards.includes(id) && !state.muted.includes(id))
   const total = totalTokens(state)
   const spent = state.judge.spent + a.spent
+  // Only a run that answered is evidence of an empty session: a cold snapshot or an API error says nothing.
+  const emptyRuns = a.error !== null ? state.emptyRuns : a.kept === 0 ? state.emptyRuns + 1 : 0
+  const overBudget = total > 0 && spent > JUDGE_BUDGET_SHARE * total
   return {
     ...state,
     patterns,
@@ -297,7 +330,10 @@ const applyJudgeDone = (state: State, a: Extract<Action, { type: 'judge.done' }>
       runs: state.judge.runs + 1,
       spent,
       // No completed turn is no budget to be over: the first run of a reloaded session doubles nothing.
-      backoff: total > 0 && spent > JUDGE_BUDGET_SHARE * total ? Math.min(state.judge.backoff * 2, JUDGE_MAX_BACKOFF) : state.judge.backoff,
+      // Runs that keep finding nothing slow the cadence to its floor; a run that found something restores it.
+      backoff: emptyRuns >= JUDGE_EMPTY_RUNS
+        ? JUDGE_MAX_BACKOFF
+        : overBudget ? Math.min(state.judge.backoff * 2, JUDGE_MAX_BACKOFF) : emptyRuns === 0 && state.emptyRuns >= JUDGE_EMPTY_RUNS ? 1 : state.judge.backoff,
       error: a.error,
       focus: a.focus,
       time: a.time,
@@ -306,12 +342,76 @@ const applyJudgeDone = (state: State, a: Extract<Action, { type: 'judge.done' }>
     },
     // Only a run that answered spends the arming: a cold snapshot or a refusal leaves it for the next opportunity.
     pendingCheck: a.error === null ? false : state.pendingCheck,
+    emptyRuns,
   }
+}
+
+/**
+ * What filled the window before this compaction: the ledger's context since the compaction before it, by sink.
+ * Measured in the ledger's characters, the one context measure the rows carry; null when nothing ran between.
+ */
+export const compactionReport = (state: State): CompactionReport | null => {
+  const since = state.compactions.length === 0 ? null : Math.max(...state.compactions)
+  const rows = since === null ? state.rows : state.rows.filter(r => r.turn > since)
+  // The folds are the oldest rows of the session: they belong to the span only when no compaction came before.
+  const measured = sinks(rows, 'chars', [], since === null ? state.folded : {})
+  return measured.total === 0 ? null : { turn: state.turn, total: measured.total, sinks: measured.sinks }
+}
+
+type Applied = NonNullable<Pattern['applied']>
+
+// One pattern's Apply state moved. Only `apply.on` starts one; the others move one that exists and leave the
+// rest alone, so a stray action for a pattern nobody applied changes nothing.
+const withApplied = (state: State, id: string, move: (a: Applied | undefined) => Applied | undefined): State => ({
+  ...state,
+  patterns: state.patterns.map(p => (p.id === id ? { ...p, applied: move(p.applied) } : p)),
+})
+
+const moved = (step: (a: Applied) => Applied) => (a: Applied | undefined): Applied | undefined => (a === undefined ? undefined : step(a))
+
+// The switch a step makes from the one before it: the model first, since a new model is a new cache whatever the effort.
+const causeOf = (last: Prefix['last'], model: string, effort: string | null): PrefixCause | null => {
+  if (last === null) return null
+  if (last.model !== model) return 'model'
+  return last.effort !== effort ? 'effort' : null
+}
+
+// One step of the main loop: a switch is a break with what the step after it wrote, anything else a steady sample.
+const applyStep = (state: State, a: Extract<Action, { type: 'step' }>): State => {
+  const last = state.prefix.last
+  const cause = causeOf(last, a.model, a.effort)
+  const now = { model: a.model, effort: a.effort }
+  if (cause === null || last === null) {
+    const steady = a.cacheCreate === null ? state.prefix.steady : [...state.prefix.steady, a.cacheCreate].slice(-PREFIX_SAMPLES)
+    return { ...state, prefix: { ...state.prefix, last: now, steady } }
+  }
+  const from = cause === 'model' ? last.model : (last.effort ?? '-')
+  const to = cause === 'model' ? a.model : (a.effort ?? '-')
+  const breaks = [...state.prefix.breaks, { cause, turn: state.turn, from, to, cacheCreate: a.cacheCreate }].slice(-PREFIX_BREAKS_CAP)
+  return { ...state, prefix: { ...state.prefix, last: now, breaks } }
+}
+
+// What the detectors found, folded in the way a judge run's findings are, without the judge's own bookkeeping.
+const applyDetectDone = (state: State, a: Extract<Action, { type: 'detect.done' }>): State => {
+  const patterns = [...a.patterns, ...state.patterns.filter(p => isDecided(p) && patternById(a.patterns, p.id) === undefined)]
+  const added = a.fresh.filter((id, i) =>
+    a.fresh.indexOf(id) === i && patternById(patterns, id)?.decision === null && !state.cards.includes(id) && !state.muted.includes(id))
+  return { ...state, patterns, cards: [...added, ...state.cards].filter(id => patternById(patterns, id) !== undefined) }
 }
 
 const applyReset = (state: State): State => ({
   ...initialState(state.cwd, state.usage.window),
   overhead: state.overhead,
+  prefixParts: state.prefixParts,
+  // Read from CLAUDE.md and the history at the start: a reset of the session does not make a rule fresh again.
+  stale: state.stale,
+  sensitivity: state.sensitivity,
+  canApply: state.canApply,
+  // The facts are the session's, not the ledger's: a reset keeps the last reading and what is switched on.
+  info: state.info,
+  infoShow: state.infoShow,
+  // What the project's history mutes outlives a session's reset: it was never this session's to clear.
+  muted: state.muted,
   columns: state.columns,
   paneOpen: state.paneOpen,
   patterns: state.patterns.map(p => fromStored(toStored(p))),
@@ -344,7 +444,30 @@ export const reduce = (state: State, action: Action): State => {
       // The fill a compaction invalidated is forgotten: `tokens` is sticky and a just-compacted window
       // reports none until its next response (d.ts 7023-7025), so the header awaits the next turn instead
       // of announcing two turns to a compaction that just happened.
-      return { ...state, compactions: [...state.compactions, state.turn], usage: { ...state.usage, tokens: undefined, percent: undefined } }
+      return {
+        ...state,
+        compactions: [...state.compactions, state.turn],
+        lastCompaction: compactionReport(state),
+        usage: { ...state.usage, tokens: undefined, percent: undefined },
+      }
+    case 'prefix':
+      return { ...state, prefixParts: [...action.parts] }
+    case 'info':
+      return { ...state, info: { ...state.info, ...action.info } }
+    case 'apply.on':
+      return withApplied(state, action.patternId, () => ({ count: 0, failures: 0, stopped: false }))
+    case 'apply.rewrote':
+      return withApplied(state, action.patternId, moved(a => ({ ...a, count: a.count + 1 })))
+    case 'apply.whole':
+      return withApplied(state, action.patternId, moved(a => ({ ...a, count: 0 })))
+    case 'apply.failed':
+      return withApplied(state, action.patternId, moved(a => ({ ...a, failures: a.failures + 1, stopped: a.failures + 1 >= APPLY_MAX_FAILURES })))
+    case 'artifact.preview':
+      return { ...state, preview: action.preview }
+    case 'stale':
+      return { ...state, stale: [...action.rules] }
+    case 'stale.done':
+      return { ...state, stale: state.stale.filter(r => r.patternId !== action.patternId) }
     case 'expand':
       return { ...state, expanded: action.patternId === state.expanded ? null : action.patternId }
     case 'steer.begin':
@@ -359,6 +482,14 @@ export const reduce = (state: State, action: Action): State => {
       return applyJudgeDone(state, action)
     case 'check.arm':
       return { ...state, pendingCheck: true }
+    case 'step':
+      return applyStep(state, action)
+    case 'detect.done':
+      return applyDetectDone(state, action)
+    case 'history':
+      return { ...state, muted: [...action.muted], cards: state.cards.filter(id => !action.muted.includes(id)) }
+    case 'judge.wake':
+      return state.emptyRuns < JUDGE_EMPTY_RUNS ? state : { ...state, emptyRuns: 0, judge: { ...state.judge, backoff: 1 } }
     case 'notes.drained':
       return { ...state, notes: [] }
     case 'standing.add':
@@ -463,6 +594,7 @@ export const cardOf = (p: Pattern, state: State, n: number, aliases: ReadonlyMap
     fix: p.alternative,
     total: totalOf(p, state, rows),
     evidence: evidenceOf(p, state, rows, aliases),
+    canApply: state.canApply && isApplicable(p) && p.applied === undefined,
   }
 }
 
@@ -488,10 +620,27 @@ const trendOf = (state: State): number[] =>
 const sinksOf = (state: State, measure: 'ms' | 'chars'): Sinks | null =>
   state.rows.length === 0 ? null : sinks(state.rows, measure, state.loops, state.folded)
 
+// What every request re-reads, largest first: the engine's own measure, so the header states it as it came.
+const prefixOf = (state: State): Header['prefix'] => {
+  const parts = (state.prefixParts ?? []).filter(p => p.tokens > 0).sort((a, b) => b.tokens - a.tokens)
+  return parts.length === 0 ? null : { total: parts.reduce((n, p) => n + p.tokens, 0), parts }
+}
+
+// The last compaction's sinks as shares of what the ledger measured between the two compactions.
+const compactionOf = (state: State): Header['compaction'] => {
+  const report = state.lastCompaction
+  if (report === null) return null
+  return { turn: report.turn, sinks: report.sinks.map(s => ({ label: s.label, share: Math.round((s.amount / report.total) * 100) })) }
+}
+
 const headerOf = (state: State): Header => ({
   percent: state.usage.percent ?? null,
   tokensToCompaction: tokensToCompaction(state),
   turnsToCompaction: turnsToCompaction(state),
+  prefix: prefixOf(state),
+  compaction: compactionOf(state),
+  info: infoParts(state, state.info.at),
+  turnsRange: turnsRange(state),
   trend: trendOf(state),
   time: sinksOf(state, 'ms'),
   context: sinksOf(state, 'chars'),
@@ -540,6 +689,9 @@ export const paneModel = (state: State, artifacts: Artifact[]): PaneModel => {
       .sort((a, b) => (b.decidedAtTurn ?? 0) - (a.decidedAtTurn ?? 0))
       .map(p => decidedRowOf(state, p)),
     artifacts,
+    // A preview of a rule no longer offered (written, tried or skipped since) has nothing left to preview.
+    preview: state.preview !== null && artifacts.some(a => a.patternId === state.preview?.patternId && a.kind === state.preview.kind) ? state.preview : null,
+    stale: state.stale,
   }
 }
 
@@ -603,6 +755,7 @@ export const bandModel = (state: State, now: number = clockOf(state)): BandModel
     savedMs: state.saved.ms,
     calls: state.rows.length,
     paneOpen: state.paneOpen,
+    slowed: state.emptyRuns >= JUDGE_EMPTY_RUNS,
   }
 }
 
@@ -715,7 +868,7 @@ const classCounts = (rows: readonly Row[]): string => {
 const oneLine = (text: string | null): string => (text === null ? '-' : `"${text.replace(/\n/g, '\\n').slice(0, 120)}"`)
 
 const patternLine = (p: Pattern): string =>
-  `  ${p.id} · hits ${p.hits.length} [${p.hits.slice(0, 5).join(' ')}] · ${p.decision ?? '-'} @ ${p.decidedAtTurn ?? '-'} · previous ${p.lastDecision ?? '-'} · ignored ${p.ignored} · opened ${p.openedAtTurn ?? '-'} · sent ${oneLine(p.instruction)}`
+  `  ${p.id} · hits ${p.hits.length} [${p.hits.slice(0, 5).join(' ')}] · ${p.decision ?? '-'} @ ${p.decidedAtTurn ?? '-'} · previous ${p.lastDecision ?? '-'} · ignored ${p.ignored} · opened ${p.openedAtTurn ?? '-'} · sent ${oneLine(p.instruction)}${p.applied === undefined ? '' : ` · applied ${p.applied.stopped ? 'stopped' : `${p.applied.count} in a row`} · failures ${p.applied.failures}`}`
 
 const patternLines = (state: State): string[] => {
   const shown = state.patterns.slice(0, DEBUG_MAX_PATTERNS).map(patternLine)
@@ -744,9 +897,25 @@ const loadCheckLine = (state: State, spoke: boolean): string => {
   return `load check: ${lane} · ${spoke ? 'reported' : 'not yet reported'}`
 }
 
+// What the detectors named, apart from the judge's: two counts, never one total.
+const detectLine = (state: State): string => {
+  const found = state.patterns.filter(p => isDetected(p.id))
+  return `found by code ${found.length}${found.length === 0 ? '' : `: ${found.map(p => p.id).join(', ')}`} · by the judge ${state.patterns.length - found.length}`
+}
+
+// The main loop's model and effort, and what switching them has cost the cache so far.
+const prefixLine = (state: State): string => {
+  const { last, breaks, steady } = state.prefix
+  const extra = extraCache(breaks, steady)
+  const now = last === null ? '-' : `${last.model}/${last.effort ?? '-'}`
+  return `prefix ${now} · switches ${breaks.length}${breaks.length === 0 ? '' : ` (${breaks.map(b => `${b.cause} ${b.from}→${b.to} @ ${b.turn}`).join(', ')})`} · steady median ${steady.length === 0 ? '-' : median([...steady])} · extra cache ${extra ?? '-'} tokens`
+}
+
 // Where a budget went, as the pane's Time and Context rows no longer spell out: the total and the largest sinks.
 const sinkLine = (label: string, unit: string, budget: Sinks | null): string =>
   `${label} sinks: ${budget === null ? '-' : [`${budget.total}${unit} total`, ...budget.sinks.map(s => `${s.label} ${s.amount} ×${s.count}`)].join(' · ')}`
+
+const rangeText = (range: { low: number; high: number } | null): string => (range === null ? '-' : `${range.low}–${range.high}`)
 
 /** Renders the whole state, and whether the load lane has reported yet, for `/manager debug` in ≤ 40 lines. */
 export const debugDump = (state: State, spoke = false): string => {
@@ -761,6 +930,8 @@ export const debugDump = (state: State, spoke = false): string => {
     sinkLine('time', 'ms', sinksOf(state, 'ms')),
     sinkLine('context', 'ch', sinksOf(state, 'chars')),
     ...patternLines(state),
+    detectLine(state),
+    `muted ${state.muted.length}${state.muted.length === 0 ? '' : `: ${state.muted.join(', ')}`} · empty judge runs in a row ${state.emptyRuns}`,
     `cards ${state.cards.length}${state.cards.length === 0 ? '' : `: ${state.cards.join(', ')}`}`,
     `notes ${state.notes.length} · standing ${state.standing.length} · written ${state.written.length}${state.written.length === 0 ? '' : `: ${state.written.join(', ')}`}`,
     `judge runs ${j.runs} · spent ${j.spent} tokens (${share === null ? '-' : `${share}%`} of the session's new tokens over ${measuredTurns(state)}) · backoff ${j.backoff} · running ${j.running} · lastAt ${j.lastAtTokens} tokens / turn ${j.lastAtTurn} / row ${j.lastAtSeq} / ${j.lastAtMs}ms · error ${j.error ?? '-'} · focus ${oneLine(j.focus)}`,
@@ -768,9 +939,11 @@ export const debugDump = (state: State, spoke = false): string => {
     `judge context: ${oneLine(j.context)}`,
     ...judgeRunLines(j.last),
     loadCheckLine(state, spoke),
-    `usage ${u.percent ?? '-'}% · ${u.tokens ?? '-'} / ${u.window} tokens · compactAt ${u.compactAt ?? '-'} · toCompaction ${tokensToCompaction(state) ?? '-'} · turnsLeft ${turnsToCompaction(state) ?? '-'} · session ${totalTokens(state)} new`,
+    `usage ${u.percent ?? '-'}% · ${u.tokens ?? '-'} / ${u.window} tokens · compactAt ${u.compactAt ?? '-'} · toCompaction ${tokensToCompaction(state) ?? '-'} · turnsLeft ${turnsToCompaction(state) ?? '-'} (${rangeText(turnsRange(state))}, quartiles of the last ${TREND_TURNS} turns' growth) · session ${totalTokens(state)} new`,
+    prefixLine(state),
     `overhead ${o === null ? '-' : `memory ${o.memory} · mcp ${o.mcp} · agents ${o.agents}`}`,
-    `compactions ${state.compactions.length === 0 ? 'none' : state.compactions.join(', ')}`,
+    `compactions ${state.compactions.length === 0 ? 'none' : state.compactions.join(', ')}${state.lastCompaction === null ? '' : ` · last at turn ${state.lastCompaction.turn}: ${state.lastCompaction.sinks.map(s => `${s.label} ${s.amount}`).join(' · ')} of ${state.lastCompaction.total} ch`}`,
+    `prefix parts ${state.prefixParts === null ? '-' : state.prefixParts.map(p => `${p.name} ${p.tokens}`).join(' · ')}`,
     `pane ${state.paneOpen ? 'open' : 'closed'} · autoOpened ${state.autoOpened} · columns ${state.columns ?? '-'} · expanded ${state.expanded ?? '-'} · steering ${state.steering ?? '-'}`,
     `saved ${duration(state.saved.ms)} · ~${pctOf(state.saved.chars, u.window)}% · ${state.saved.chars} chars`,
   ].slice(0, DEBUG_MAX_LINES).join('\n')

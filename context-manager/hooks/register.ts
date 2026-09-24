@@ -1,24 +1,38 @@
-import type { ModelForkResult, On, PaneOpenArgs, PluginOptions, RenderElement } from 'claude-code'
+import type { ModelForkResult, On, PaneOpenArgs, PluginOptions, RenderElement, SessionUsage } from 'claude-code'
 
 import { adoptRows } from './core/adopt'
+import { detect } from './core/detect'
+import { EMPTY_HISTORY, historyPath, mutedOf, parseHistory, sessionEntryOf, staleRules, statsText, unmuted, withRule, withSession } from './core/history'
+import type { History } from './core/history'
 import { demoForkUsage, demoPatterns, demoRows, demoTurns, demoUsage } from './core/demo'
 import { buildPrompt, judgeAliases, merge, parseReply, shouldRun, spentOf, usageOf } from './core/judge'
-import { rowOf } from './core/ledger'
+import { appliedFor, editedSince, isApplicable, rewriteOf, testCandidates, watchStep } from './core/apply'
+import type { Watch } from './core/apply'
+import {
+  GIT_BRANCH_ARGV, GIT_DIFF_ARGV, LINUX_ARGV, MAC_ARGV, VERSION_ARGV, WINDOWS_ARGV, branchOf, diffOf, limitsOf, parseLinux, parseMac,
+  parseWindows, platformOf, versionOf,
+} from './core/info'
+import type { Platform, SystemReading } from './core/info'
+import { normalize, rowOf } from './core/ledger'
+import { reportOf, reportPath } from './core/report'
 import type { ToolEvent } from './core/ledger'
 import { bandModel, debugDump, fromStored, mergeStored, paneModel, parseRegistry, reduce, toStored, usageLine } from './core/patterns'
-import { appendedTo, bulletOnly, mergeSettings, propose } from './core/rules'
+import { appendedTo, bulletOnly, markedRules, mergeSettings, previewOf, propose, ruleText, withoutRule } from './core/rules'
 import { activeRuns, agentOf, journalPath, parseJournal, runOf } from './core/spawns'
 import { collapseWs, duration, fit, instructionOf, pctOf } from './core/text'
 import {
   AUTO_OPEN_MIN_COLUMNS, CLAUDE_MD_HEADING, COMMAND, DEBUG_MAX_DROPPED, JUDGE_MIN_ROWS, MAX_PATTERNS, PANE_ID,
-  PANE_INLINE_ROWS, PANE_TITLE, PLUGIN_NAME, RUN_REFRESH_MS, STEER_RING_TRIES, STEER_RING_WAIT_MS, initialState,
+  APPLIED_FLAG, APPLY_WATCH_CALLS, PANE_INLINE_ROWS, PANE_TITLE, PLUGIN_NAME, RUN_REFRESH_MS, SENSITIVITIES, STEER_RING_TRIES, STEER_RING_WAIT_MS,
+  initialState,
 } from './core/types'
-import type { Action, Actions, Artifact, Choice, JudgeUsage, Run, State, Tokens, Ui } from './core/types'
+import { INFO_KEYS, INFO_REFRESH_DEFAULT_S, INFO_REFRESH_MIN_S } from './core/types'
+import type { Action, Actions, Artifact, Choice, Info, InfoKey, JudgeUsage, Run, Sensitivity, State, Tokens, Ui } from './core/types'
 import type { Host } from './host'
 import { LANGUAGE_TAGS, say, setSay } from './say'
 import { Band, Pane } from './ui'
 
 const CONFIG_LANG_KEY = `${PLUGIN_NAME}.language`   // the `/config` row that picks the language
+const PREFIX_EXCLUDED = 'Messages'   // the /context row that is the conversation itself, not the prefix
 const ANSWER_HEAD = 100   // characters of the turn's answer kept as an evidence quote
 const CARD_KIND = 60      // characters of a card's behaviour quoted back in a command's reply
 const DEMO_CONTEXT = [120_000, 190_000, 250_000, 320_000]   // `/manager demo`: the window filling up to the sample's own 32%, so the trend draws
@@ -43,6 +57,27 @@ export function register(on: On, options: PluginOptions = {}): void {
   // Before anything else: the command's own words are read when it is registered, and every line the
   // pane draws is read when it is drawn, both of which happen under a hook below.
   setSay(options['language'])
+  // The other two rows are read here too, and for the same reason: writing one reloads the module.
+  const sensitivity: Sensitivity = SENSITIVITIES.find(s => s === options['sensitivity']) ?? 'normal'
+  const canApply = options['apply'] === true
+  // One row per fact, each read by its literal name; a row left at its default shows its fact.
+  const infoShow: Record<InfoKey, boolean> = {
+    model: options['showModel'] !== false,
+    effort: options['showEffort'] !== false,
+    fiveHour: options['showFiveHour'] !== false,
+    fiveHourReset: options['showFiveHourReset'] !== false,
+    week: options['showWeek'] !== false,
+    cost: options['showCost'] !== false,
+    branch: options['showBranch'] !== false,
+    diff: options['showDiff'] !== false,
+    skill: options['showSkill'] !== false,
+    version: options['showVersion'] !== false,
+    clock: options['showClock'] !== false,
+    system: options['showSystem'] !== false,
+  }
+  const refreshSeconds = typeof options['infoRefresh'] === 'number' && Number.isFinite(options['infoRefresh'])
+    ? Math.max(INFO_REFRESH_MIN_S, options['infoRefresh'])
+    : INFO_REFRESH_DEFAULT_S
 
   let state: State = initialState('', 0)
   let host: Host | null = null
@@ -56,6 +91,14 @@ export function register(on: On, options: PluginOptions = {}): void {
   // The load lane's one failure toast. Its arming survives every failure, so a toast per retry would be a
   // storm — but total silence reads exactly like a check that never fired, so the first failure speaks.
   let armedSpoke = false
+  // The project's history: the file it lives in (null without a home directory), what it held when read, this
+  // session's key in it, and the entry last written, so a turn that changed nothing writes nothing.
+  let historyFile: string | null = null
+  let history: History = EMPTY_HISTORY
+  let sessionKey = ''
+  let sessionAt = 0
+  let resets = 0
+  let lastWritten = ''
 
   const messageOf = (err: unknown): string => (err instanceof Error ? err.message : String(err))
 
@@ -99,6 +142,39 @@ export function register(on: On, options: PluginOptions = {}): void {
   const resetSession = (): void => {
     dispatch({ type: 'reset' })
     armedSpoke = false
+    // What ran before the reset stays in the history under its own key; what follows is a session of its own.
+    resets += 1
+    sessionKey = `s${sessionAt}-${resets}`
+    lastWritten = ''
+  }
+
+  // This session's entry, folded into the history and written back when it changed. Never awaited from a hook:
+  // the turn is answered first, and a write that fails costs the history one turn, never the session.
+  const writeHistory = async (): Promise<void> => {
+    const engine = host
+    const file = historyFile
+    if (engine === null || file === null || sessionKey === '') return
+    const entry = sessionEntryOf(state, sessionKey, sessionAt)
+    const text = JSON.stringify(entry)
+    if (text === lastWritten) return
+    history = withSession(history, entry)
+    await engine.writeFile(file, JSON.stringify(history))
+    lastWritten = text
+    // The store keeps the pointer and two counters; the detail is the file's.
+    await engine.storeSet(`history:${state.cwd}`, { file, sessions: history.sessions.length, lastWrittenAt: sessionAt })
+  }
+
+  // The history as `/manager stats` reads it: the file's sessions, this one included as it stands now.
+  const historyNow = (): History => (sessionKey === '' ? history : withSession(history, sessionEntryOf(state, sessionKey, sessionAt)))
+
+  const unmuteText = async (id: string): Promise<string> => {
+    if (id === '') return say().command.unmuteUsage
+    if (!state.muted.includes(id)) return say().command.notMuted(id)
+    const now = host === null ? 0 : await host.now()
+    history = unmuted(history, id, now)
+    dispatch({ type: 'history', muted: mutedOf(history) })
+    if (historyFile !== null && host !== null) await host.writeFile(historyFile, JSON.stringify(history)).catch(() => undefined)
+    return say().command.unmuted(id)
   }
 
   // Inside a render hook: fold the action in with no redraw, since a redraw loops.
@@ -127,6 +203,8 @@ export function register(on: On, options: PluginOptions = {}): void {
     // refusal every caller already catches, and the pane is not open.
     if (!opened.isPlaced) throw new Error(opened.reason)
     dispatch(auto === undefined ? { type: 'pane', open: true } : { type: 'pane', open: true, auto })
+    // The facts were not read while the pane was shut: read them now rather than at the next tick.
+    void readInfo(true).catch(() => undefined)
   }
 
   // Only after fresh cards arrived, once a session, and only where the surface would draw it.
@@ -303,7 +381,23 @@ export function register(on: On, options: PluginOptions = {}): void {
     if (!armedCheck() && shouldRun(state, now)) void runJudge(cadence).catch(() => undefined)
   }
 
+  // The detectors cost no model call, so they read every new fact as it lands — a ledger row, a finished
+  // turn, a step that switched model or effort — and only news reaches the registry: a behaviour they named
+  // before and nobody has decided is already queued, and one somebody decided is theirs to keep.
+  const detectNow = (): void => {
+    const findings = detect(state)
+    if (findings.length === 0) return
+    const merged = merge(state, findings)
+    if (merged.fresh.length === 0) return
+    dispatch({ type: 'detect.done', patterns: merged.patterns, fresh: merged.fresh })
+    persist()
+    if (isDebug) host?.log(`ContextManager detectors: ${merged.fresh.join(', ')}`)
+    void autoOpen(merged.fresh)
+  }
+
   const checkNow = (): string => {
+    // Asked for by a person: an audit slowed by empty runs goes back to its own pace.
+    dispatch({ type: 'judge.wake' })
     if (forking || state.judge.running) {
       // The run already going answers this ask: nothing is forked, and nobody is left without a reply.
       asked = true
@@ -377,19 +471,98 @@ export function register(on: On, options: PluginOptions = {}): void {
 
   // The artifact's own words without the file's furniture: a bullet, or the prose under a frontmatter.
   const bodyOf = (content: string): string =>
-    content.includes(CLAUDE_MD_HEADING) ? bulletOnly(content).replace(/^- /, '') : (content.split('---\n').at(-1) ?? content)
+    content.includes(CLAUDE_MD_HEADING) ? ruleText(bulletOnly(content)) : (content.split('---\n').at(-1) ?? content)
 
+  // Apply: Fix, and the calls that carry the behaviour are rewritten from now on. Only where the `/config` row is
+  // on and the behaviour has a rewrite; anything else is answered, never silently turned into a plain Fix.
+  const applyPattern = (patternId: string): string | null => {
+    const p = state.patterns.find(q => q.id === patternId)
+    if (p === undefined) return null
+    if (!state.canApply) return say().command.applyOff
+    if (!isApplicable(p)) return say().command.notApplicable(seatOf(patternId))
+    decide(patternId, 'kill')
+    if (state.patterns.find(q => q.id === patternId)?.decision !== 'kill') return null
+    dispatch({ type: 'apply.on', patternId })
+    host?.toast(say().command.appliedOn(p.kind))
+    return null
+  }
+
+  // The rewrite last made, and the main-loop Bash calls after it in which running the original again means the
+  // rewrite was wrong: the note tells Claude that running it again gets the whole thing, so that call goes through.
+  let watch: Watch = null
+
+  // Generic over the call's own type, so the rewritten call is still the call the engine handed us.
+  const planCall = async <E extends ToolEvent>(engine: Host, e: E): Promise<{ call: E; note: string | null }> => {
+    const unchanged = { call: e, note: null }
+    if (e.tool !== 'Bash' || e.agentId !== undefined || typeof e.command !== 'string') return unchanged
+    const { key } = normalize('Bash', e)
+    const step = watchStep(watch, key)
+    watch = step.watch
+    if (step.failed !== null) {
+      dispatch({ type: 'apply.failed', patternId: step.failed })
+      const failed = state.patterns.find(q => q.id === step.failed)
+      if (failed?.applied?.stopped === true) engine.toast(say().command.appliedStopped(failed.kind))
+      return unchanged
+    }
+    const p = appliedFor(state, key)
+    if (p === undefined) return unchanged
+    const edited = editedSince(state, key)
+    const candidates = edited.length === 1 ? testCandidates(edited[0] ?? '', state.cwd) : []
+    const found: string[] = []
+    for (const candidate of candidates) if (await engine.exists(candidate).catch(() => false)) found.push(candidate)
+    const plan = rewriteOf(p, e.command, edited, found, state.cwd)
+    if (plan === null) return unchanged
+    if (plan.type === 'whole') {
+      dispatch({ type: 'apply.whole', patternId: p.id })
+      return unchanged
+    }
+    dispatch({ type: 'apply.rewrote', patternId: p.id })
+    watch = { patternId: p.id, key, left: APPLY_WATCH_CALLS }
+    return { call: { ...e, command: plan.command } as E, note: plan.note }
+  }
+
+  const isPreviewed = (a: Artifact): boolean => state.preview !== null && state.preview.patternId === a.patternId && state.preview.kind === a.kind
+
+  // Write in two presses: the first shows what would be written, the second writes it. The file is read again at
+  // the second press, since the person may have edited it between the two, and a rule already there is not
+  // written twice.
   const writeArtifact = async (a: Artifact): Promise<void> => {
     const engine = host
     if (engine === null) return
     try {
-      // A whole-file write reads nothing; an append and a settings merge need what is there.
-      const existing = a.mode === 'write' || !(await engine.exists(a.path)) ? null : await engine.readFile(a.path)
+      const existing = (await engine.exists(a.path)) ? await engine.readFile(a.path) : null
+      const preview = previewOf(a, existing)
+      if (!isPreviewed(a) || preview.duplicate) {
+        dispatch({ type: 'artifact.preview', preview })
+        if (isPreviewed(a) && preview.duplicate) engine.toast(say().command.alreadyThere(a.path))
+        return
+      }
       if (a.mode === 'append') await engine.writeFile(a.path, appendedTo(existing, a.content))
       if (a.mode === 'write') await engine.writeFile(a.path, a.content)
       if (a.mode === 'merge-settings') await engine.writeFile(a.path, mergeSettings(existing, a.content))
+      dispatch({ type: 'artifact.preview', preview: null })
       dispatch({ type: 'artifact.done', patternId: a.patternId, kind: a.kind, written: true })
       engine.toast(say().command.wrote(a.path))
+      // The date a CLAUDE.md rule was written is what later sessions measure its usefulness from.
+      if (a.kind === 'claude-md' && historyFile !== null) {
+        history = withRule(history, a.patternId, await engine.now())
+        await engine.writeFile(historyFile, JSON.stringify(history))
+      }
+    } catch (err) {
+      engine.toast(messageOf(err))
+    }
+  }
+
+  // A stale rule taken out of CLAUDE.md: its bullet alone, every other line as it was.
+  const removeRule = async (patternId: string): Promise<void> => {
+    const engine = host
+    if (engine === null) return
+    const path = `${state.cwd}/CLAUDE.md`
+    try {
+      const text = await engine.readFile(path)
+      await engine.writeFile(path, withoutRule(text, patternId))
+      dispatch({ type: 'stale.done', patternId })
+      engine.toast(say().command.removed(path))
     } catch (err) {
       engine.toast(messageOf(err))
     }
@@ -457,8 +630,125 @@ export function register(on: On, options: PluginOptions = {}): void {
     },
     tryOnce: a => tryArtifact(a),
     // A skipped rule is handled: `state.written` is the set the pane never offers again.
-    skip: a => dispatch({ type: 'artifact.done', patternId: a.patternId, kind: a.kind, written: true }),
+    skip: a => {
+      if (isPreviewed(a)) dispatch({ type: 'artifact.preview', preview: null })
+      dispatch({ type: 'artifact.done', patternId: a.patternId, kind: a.kind, written: true })
+    },
+    removeRule: patternId => {
+      void removeRule(patternId)
+    },
+    keepRule: patternId => dispatch({ type: 'stale.done', patternId }),
+    apply: patternId => {
+      const refused = applyPattern(patternId)
+      if (refused !== null) host?.toast(refused)
+    },
   }
+
+  // What a timer may call once the hook that started it has returned: `$` does not outlive its dispatch, the
+  // engine the module was created with does.
+  type Live = {
+    run: (argv: readonly string[]) => Promise<{ exitCode: number; stdout: string }>
+    every: (ms: number, fn: () => void) => { cancel: () => void }
+    usage: () => Promise<SessionUsage>
+    now: () => Promise<number>
+    os: () => Promise<string | undefined>
+    invalidate: () => void
+  }
+  let live: Live | null = null
+  let ticker: { cancel: () => void } | null = null
+  let platform: Platform | null = null
+  let lastTicks: { idle: number; total: number } | undefined
+  let reading = false
+
+  on('engine.create', async (_$, e, next) => {
+    const beneath = await next(e)
+    try {
+      live ??= {
+        run: argv => beneath.process.run(argv),
+        every: (ms, fn) => beneath.clock.every(ms, fn),
+        usage: () => beneath.session.usage(),
+        now: () => beneath.clock.now(),
+        os: () => beneath.env.get('OS'),
+        invalidate: () => beneath.ui.invalidate('ui.render'),
+      }
+    } catch {
+      // an engine that lacks a noun leaves the facts it would have read unread
+    }
+    return beneath
+  })
+
+  const wanted = (...keys: InfoKey[]): boolean => keys.some(key => state.infoShow[key])
+
+  // The machine, by the probe its platform takes; null where it has none or the probe failed.
+  const readSystem = async (engine: Live): Promise<SystemReading | null> => {
+    if (platform === null) {
+      const os = await engine.os().catch(() => undefined)
+      const uname = os === 'Windows_NT' ? null : await engine.run(['uname', '-s']).then(r => r.stdout).catch(() => null)
+      platform = platformOf(os, uname)
+    }
+    if (platform === 'windows') return parseWindows((await engine.run(WINDOWS_ARGV)).stdout)
+    if (platform === 'mac') return parseMac((await engine.run(MAC_ARGV)).stdout)
+    if (platform === 'linux') {
+      const reading = parseLinux((await engine.run(LINUX_ARGV)).stdout, lastTicks)
+      lastTicks = reading?.ticks ?? lastTicks
+      return reading
+    }
+    return null
+  }
+
+  // One reading of the facts that change on their own: the limits and the cost, git, the machine and the time.
+  // Only while the pane is open, since nothing else draws them, and never two at once.
+  const readInfo = async (force = false): Promise<void> => {
+    const engine = live
+    if (engine === null || reading || (!force && !state.paneOpen)) return
+    reading = true
+    try {
+      const at = await engine.now()
+      const patch: Partial<Info> = { at }
+      if (wanted('fiveHour', 'fiveHourReset', 'week', 'cost')) {
+        const u = await engine.usage().catch(() => null)
+        if (u !== null) Object.assign(patch, { limits: limitsOf(u.rateLimits), costUsd: u.cost?.usd ?? null })
+      }
+      if (wanted('branch', 'diff')) {
+        const branch = await engine.run(GIT_BRANCH_ARGV).catch(() => null)
+        const diff = branch === null || branch.exitCode !== 0 ? null : await engine.run(GIT_DIFF_ARGV).catch(() => null)
+        patch.git = branch === null || branch.exitCode !== 0 ? null : { branch: branchOf(branch.stdout), ...diffOf(diff?.stdout ?? '') }
+      }
+      if (wanted('system')) patch.system = await readSystem(engine).catch(() => null)
+      dispatch({ type: 'info', info: patch })
+      engine.invalidate()
+    } finally {
+      reading = false
+    }
+  }
+
+  // Started once per session on the plugin's own clock; a new session cancels the one before.
+  const startTicker = (): void => {
+    const engine = live
+    if (engine === null || !wanted(...INFO_KEYS)) return
+    ticker?.cancel()
+    ticker = engine.every(refreshSeconds * 1000, () => {
+      void readInfo().catch(() => undefined)
+    })
+  }
+
+  // The version never changes within a session, so it is asked once, detached from the start.
+  const readVersion = async (): Promise<void> => {
+    const engine = live
+    if (engine === null || !state.infoShow.version) return
+    const version = versionOf((await engine.run(VERSION_ARGV)).stdout)
+    if (version !== null) dispatch({ type: 'info', info: { version } })
+  }
+
+  on('skill.prompt', async ($, e, next) => {
+    const result = await next(e)
+    try {
+      dispatch({ type: 'info', info: { skill: e.skill } })
+    } catch {
+      // a skill we failed to note is still the skill the engine loaded
+    }
+    return result
+  })
 
   on('session.start', async ($, e, next) => {
     try {
@@ -481,12 +771,45 @@ export function register(on: On, options: PluginOptions = {}): void {
         writeFile: (path, text) => $.fs.write(path, text),
         exists: path => $.fs.exists(path),
         debugFlag: () => $.env.get('CONTEXTMANAGER_DEBUG'),
+        home: async () => (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')),
       }
       host = engine
       const u = await engine.usage({ breakdown: 'summary' })
       const now = await engine.now()
       const stored = parseRegistry(await engine.storeGet(`patterns:${e.cwd}`))
-      state = { ...initialState(e.cwd, u.context.window), patterns: stored.map(fromStored) }
+      state = { ...initialState(e.cwd, u.context.window), patterns: stored.map(fromStored), sensitivity, canApply, infoShow }
+      dispatch({
+        type: 'info',
+        info: { model: u.context.breakdown?.model ?? null, limits: limitsOf(u.rateLimits), costUsd: u.cost?.usd ?? null, at: now },
+      })
+      startTicker()
+      void readVersion().catch(() => undefined)
+      void readInfo(true).catch(() => undefined)
+      // One key per session: when it started is what `session.usage` can tell us, and a reload finds it again.
+      sessionAt = u.startedAt
+      resets = 0
+      sessionKey = `s${sessionAt}`
+      lastWritten = ''
+      history = EMPTY_HISTORY
+      historyFile = null
+      try {
+        const home = await engine.home()
+        if (home !== undefined && home !== '') {
+          const file = historyPath(home, e.cwd)
+          history = parseHistory((await engine.exists(file)) ? await engine.readFile(file) : null)
+          historyFile = file
+          const muted = mutedOf(history)
+          if (muted.length > 0) dispatch({ type: 'history', muted })
+          // The rules this plugin wrote, read once here: CLAUDE.md is read at the start of a session, so a rule
+          // offered for removal now changes nothing the running session has already paid for.
+          const claudeMd = `${e.cwd}/CLAUDE.md`
+          const marked = (await engine.exists(claudeMd)) ? markedRules(await engine.readFile(claudeMd)) : []
+          const stale = staleRules(history, marked)
+          if (stale.length > 0) dispatch({ type: 'stale', rules: stale })
+        }
+      } catch {
+        // a history we cannot read is a project with no history: the session goes on without one
+      }
       dispatch({
         type: 'usage',
         usage: { window: u.context.window, compactAt: u.context.breakdown?.autoCompactThreshold, tokens: u.context.tokens, percent: u.context.percent },
@@ -501,6 +824,12 @@ export function register(on: On, options: PluginOptions = {}): void {
         type: 'overhead',
         overhead: { memory: tokensOf(breakdown?.memoryFiles), mcp: tokensOf(loadedMcp), agents: tokensOf(breakdown?.agents) },
       })
+      // What every request re-reads before the conversation: /context's rows that hold tokens, less the
+      // conversation itself and the schemas still behind ToolSearch.
+      const parts = (breakdown?.categories ?? [])
+        .filter(c => c.kind === 'used' && !c.isDeferred && c.name !== PREFIX_EXCLUDED && c.tokens > 0)
+        .map(c => ({ name: c.name, tokens: c.tokens }))
+      if (parts.length > 0) dispatch({ type: 'prefix', parts })
       try {
         // The name and its subcommands are typed, so they never move; only what `/help` reads does.
         await engine.registerCommand({ ...COMMAND, description: say().command.description, argumentHint: say().command.argumentHint })
@@ -517,6 +846,7 @@ export function register(on: On, options: PluginOptions = {}): void {
       const adopted = adoptRows(await engine.messages())
       if (adopted.length === 0) return next(e)
       dispatch({ type: 'adopt', rows: adopted })
+      detectNow()
       // Too few rows to judge: a fresh session, nothing armed and nothing forked — which the log says too,
       // since a debug line that claims a check on three rows is worse than no line at all.
       const enough = state.rows.length >= JUDGE_MIN_ROWS
@@ -554,19 +884,29 @@ export function register(on: On, options: PluginOptions = {}): void {
   on('tool.call', async ($, e, next) => {
     const engine = host
     let started = 0
+    let call = e
+    let note: string | null = null
     try {
       if (engine === null || next.origin.plugin === PLUGIN_NAME) return next(e)
       started = await engine.now()
+      // Apply: the call is rewritten before it runs, never its result after. Anything that goes wrong here
+      // leaves the call as Claude wrote it.
+      const planned = await planCall(engine, e)
+      call = planned.call
+      note = planned.note
     } catch {
-      return next(e)
+      if (engine === null) return next(e)
+      call = e
+      note = null
     }
     // `next(e)` is called exactly once: a rejection is the engine's to report — calling it again would run the tool twice.
-    const result = await next(e)
+    const result = await next(call)
     try {
       const ended = await engine.now()
-      dispatch({ type: 'row', row: rowOf(e, result, ended - started, state.turn) })
-      const row = state.rows[state.rows.length - 1]
-      if (isDebug && row !== undefined) engine.log(`ContextManager row r${row.seq} ${row.tool} ${row.key} ${row.ms}ms ${row.chars}ch`)
+      const row = rowOf(call, result, ended - started, state.turn)
+      dispatch({ type: 'row', row: note === null ? row : { ...row, flags: [...row.flags, APPLIED_FLAG] } })
+      const landed = state.rows[state.rows.length - 1]
+      if (isDebug && landed !== undefined) engine.log(`ContextManager row r${landed.seq} ${landed.tool} ${landed.key} ${landed.ms}ms ${landed.chars}ch`)
       // A `Workflow` result is a run launched, an `Agent` result a loop named; a launch reads its journal at
       // once, and any run still going is re-read on the plugin's own cadence — detached, the call is answered.
       const run = runOf(result.result)
@@ -574,11 +914,13 @@ export function register(on: On, options: PluginOptions = {}): void {
       const agent = agentOf(spawnValue(e, result.result))
       if (agent !== null) dispatch({ type: 'agent.start', ...agent })
       void refreshRuns(run !== null).catch(() => undefined)
+      detectNow()
       // One agentic turn can run for hours, so the cadence is judged here too, not only between turns.
       judgeAt(ended, 'tool.call')
-      const pending = state.notes
+      // The rewrite's note rides beside the result, like any instruction: the result itself is untouched.
+      const pending = [...(note === null ? [] : [note]), ...state.notes]
       if (pending.length === 0 || result.deny !== undefined) return result
-      dispatch({ type: 'notes.drained' })
+      if (state.notes.length > 0) dispatch({ type: 'notes.drained' })
       return { ...result, context: [...(result.context ?? []), ...pending] }
     } catch {
       return result
@@ -617,6 +959,10 @@ export function register(on: On, options: PluginOptions = {}): void {
         },
       })
       if (seen !== null) dispatch({ type: 'usage', usage: { window: seen.context.window, tokens: seen.context.tokens, percent: seen.context.percent }, now })
+      // The same sample says where the limits and the cost stand: a turn is when they move.
+      if (seen !== null) dispatch({ type: 'info', info: { limits: limitsOf(seen.rateLimits), costUsd: seen.cost?.usd ?? null, at: now } })
+      detectNow()
+      void writeHistory().catch(() => undefined)
       judgeAt(now, 'turn.complete')
       return next(e)
     } catch {
@@ -624,10 +970,33 @@ export function register(on: On, options: PluginOptions = {}): void {
     }
   })
 
+  // Every step of the main loop, for its model, its effort and what it wrote to the cache: a switch of either
+  // rewrites the whole prompt cache, and the step after it is where that shows. Passed through untouched —
+  // nothing is read mid-stream and nothing is yielded but what came from beneath. A subagent's steps are its
+  // loop's, and our own fork's are the judge's, so neither is the session's prefix.
+  on('turn.step', async function* ($, e, next) {
+    const result = yield* next(e)
+    try {
+      if (host === null || e.agentId !== undefined || next.origin.plugin === PLUGIN_NAME) return result
+      const effort = e.effort === undefined ? null : String(e.effort)
+      // No redraw for a steady step: only a switch can change what is drawn, and the detectors redraw for that.
+      observe({ type: 'step', model: e.model, effort, cacheCreate: result.usage?.cache_creation_input_tokens ?? null })
+      if (state.prefix.breaks.length > 0) detectNow()
+    } catch {
+      // a step we failed to record is still the step the model took
+    }
+    return result
+  })
+
   on('session.compact', async ($, e, next) => {
     const result = await next(e)
     try {
       dispatch({ type: 'compact' })
+      // What had filled the window, said once at the moment it was emptied: the pane keeps it on its own row.
+      const report = paneModel(state, []).header.compaction
+      if (report !== null && report.sinks.length > 0) {
+        host?.toast(say().command.compacted(report.turn, report.sinks.map(s => say().pane.share(say().pane.sinkNames[s.label] ?? s.label, s.share)).join(', ')))
+      }
     } catch {
       // a compaction we failed to record is still the compaction the engine performed
     }
@@ -723,6 +1092,21 @@ export function register(on: On, options: PluginOptions = {}): void {
         return { text: cardReply(patternId, seat, say().command.outcomeNoted(text)) }
       }
       if (sub === 'ignore') return { text: decideByNumber('keep', args.slice(sub.length).trim()) }
+      if (sub === 'apply') {
+        if (state.cards.length === 0) return { text: say().command.nothingToDecide }
+        const n = numberOf(args.slice(sub.length).trim())
+        const patternId = n === null ? undefined : state.cards[n - 1]
+        if (n === null) return { text: say().command.usage }
+        if (patternId === undefined) return { text: noCardText(n) }
+        const reply = cardReply(patternId, n, say().command.outcomeFixed)
+        return { text: applyPattern(patternId) ?? reply }
+      }
+      if (sub === 'report') {
+        const now = await host.now()
+        const path = reportPath(state.cwd, now)
+        await host.writeFile(path, reportOf(state, now))
+        return { text: say().command.reportWritten(path) }
+      }
       if (sub === 'demo' && isDebug) {
         // Debug-only: the pane's own look, without waiting for a real finding. The header is part of that
         // look, so a usage sample and its turns come first — without them the hero row draws its empty
@@ -747,6 +1131,8 @@ export function register(on: On, options: PluginOptions = {}): void {
         return { text: say().command.demoLoaded }
       }
       if (sub === 'debug') return { text: debugDump(state, armedSpoke) }
+      if (sub === 'stats') return { text: historyFile === null ? say().command.historyUnavailable : statsText(historyNow(), state.muted) }
+      if (sub === 'unmute') return { text: await unmuteText(args.slice(sub.length).trim()) }
       if (sub === 'reset') {
         resetSession()
         return { text: say().command.reset }

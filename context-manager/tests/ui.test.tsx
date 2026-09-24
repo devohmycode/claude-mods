@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 
 import type { RenderPropsOf } from 'claude-code'
 
-import { Band, Pane } from '../hooks/ui'
+import { Band, Pane, wrapParts } from '../hooks/ui'
 import { logoCells } from '../hooks/core/logo'
 import { gauge } from '../hooks/core/text'
 import { sparkline } from '../hooks/core/trend'
@@ -224,6 +224,9 @@ const recorder = (): { calls: Call[]; actions: Actions } => {
       write: record('write'),
       tryOnce: record('tryOnce'),
       skip: record('skip'),
+      removeRule: record('removeRule'),
+      keepRule: record('keepRule'),
+      apply: record('apply'),
     },
   }
 }
@@ -548,11 +551,22 @@ describe('ui', () => {
     expect(holds(wide, gauge(64, WIDE_GAUGE))).toEqual(true)
     expect(holds(wide, `${gauge(64, WIDE_GAUGE)}  ${TREND}`), 'the trend sits two cells past the gauge').toEqual(true)
     expect(holds(wide, 'Saved ~3% · 3m 12s'), 'the row the judge left shows what the session got back').toEqual(true)
-    expect(holds(wide, '1.2%')).toEqual(false)                            // the share is a developer metric
+    // What the audit cost stands beside what it saved, each in its own unit, never netted against the other.
+    expect(holds(wide, 'Saved ~3% · 3m 12s · audit 1.2% of session tokens')).toEqual(true)
     expect(drawnRows(wide), 'where the wall time went, from the ledger').toContain('Time')
     expect(holds(wide, '3h 12m in tools · the full proxy suite runs after every fix'), 'one figure, one sentence').toEqual(true)
     expect(drawnRows(wide)).toContain('Context')
     expect(holds(wide, '410k from tools · most of it is test output nobody read past')).toEqual(true)
+    // What every request re-reads, in the engine's tokens, and what had filled the window before the last compaction.
+    expect(holds(wide, '19k tokens every request · system tools 12k · mcp tools 3.4k'), 'the figure whole, the parts as they fit').toEqual(true)
+    expect(holds(wide, 'at turn 9 · tests 48% · reads 30% · agents 12%')).toEqual(true)
+    expect(holds(wide, 'system prompt 3.1k'), 'the part the first line could not hold moves down whole').toEqual(true)
+    // A narrow pane keeps every part of the prefix, one under the other, and cuts none of them.
+    const narrow = at(44)
+    for (const part of ['19k tokens every request', 'system tools 12k', 'mcp tools 3.4k', 'system prompt 3.1k']) {
+      expect(holds(narrow, part), `${part} at 44 columns`).toEqual(true)
+    }
+    expect(holds(narrow, 'system prompt 3…'), 'a part is moved, never cut').toEqual(false)
     expect(holds(wide, 'tests 48m (6)'), 'the named sinks are the model\'s and /manager debug\'s, not the row\'s').toEqual(false)
     expect(holds(wide, '↳ the full proxy suite'), 'and the judge no longer gets a row under the figure').toEqual(false)
 
@@ -564,7 +578,15 @@ describe('ui', () => {
     const mid = at(62)
     expect(holds(mid, 'Judge 2 runs'), 'the runs outlive the tokens the name row cannot hold').toEqual(true)
     expect(holds(mid, '7.4k')).toEqual(false)
-    expect(holds(dock, '3h 12m in tools · the full proxy suite ru…'), 'the sentence is cut, never the figure').toEqual(true)
+    // The judge's sentence wraps word by word under the figure: all of it is read, none of it is cut.
+    expect(holds(dock, '3h 12m in tools · the full proxy'), 'the figure whole, the words as they fit').toEqual(true)
+    for (const word of ['suite', 'runs', 'every', 'round,', 'chunk']) expect(holds(dock, word), `${word}: the rest wraps`).toEqual(true)
+    // The facts in their three rows wrap the same way, none of them cut.
+    for (const label of ['Session', 'Information', 'Repo']) expect(drawnRows(dock), label).toContain(label)
+    for (const fact of ['effort high', '2h13', '$3.42', '24/09 12:07', 'v2.1.280', 'RAM 61%', '⎇ main', '+120 −34']) {
+      expect(holds(dock, fact), `${fact} at 60 columns`).toEqual(true)
+    }
+    expect(holds(dock, 'ru…'), 'no word is cut').toEqual(false)
     expect(holds(dock, 'Check now')).toEqual(true)
     expect(cellsOf(dock), 'every header row fits the body at 60 columns').toBeLessThanOrEqual(60)
     expect(overrun(dock)).toEqual([])
@@ -574,7 +596,8 @@ describe('ui', () => {
     expect(holds(tight, 'Judge'), 'the judge is the first segment to go').toEqual(false)
     expect(holds(tight, 'Saved ~3% · 3m')).toEqual(true)
     expect(holds(tight, '3h 12m in tools')).toEqual(true)
-    expect(holds(tight, 'in tools · '), 'a row with no room for a sentence keeps the figure alone').toEqual(false)
+    // A narrow row still reads the whole sentence, over more lines, down to its last word.
+    for (const word of ['most', 'test', 'output', 'nobody', 'summary', 'line']) expect(holds(tight, word), word).toEqual(true)
 
     const quiet = at(80, quietPane)
     expect(holds(quiet, '3h 12m in tools · nothing stands out yet'), 'before the judge speaks the row says so').toEqual(true)
@@ -1023,5 +1046,14 @@ describe('ui', () => {
     expect(holds(pane, 'Claude keeps running the whole')).toEqual(true)
     expect(drawnRows(pane)).toContain('✓ Fix')
     expect(cellsOf(pane)).toBeLessThanOrEqual(PANE_PROPS.bodyColumns)
+  })
+})
+
+describe('wrapParts', () => {
+  test('parts follow the figure while they fit, then fill further lines, moved whole and never cut', ($, _on) => {
+    expect(wrapParts('53k', ['aa 1', 'bb 2', 'cc 3'], 40)).toEqual({ first: ['aa 1', 'bb 2', 'cc 3'], rest: [] })
+    expect(wrapParts('53k tokens every request', ['system tools 31k', 'skills 9.9k', 'memory files 5.3k'], 30))
+      .toEqual({ first: [], rest: ['system tools 31k · skills 9.9k', 'memory files 5.3k'] })
+    expect(wrapParts('53k', ['aa', 'b'.repeat(20)], 10), 'only a part wider than a line is cut').toEqual({ first: ['aa'], rest: [`${'b'.repeat(9)}…`] })
   })
 })

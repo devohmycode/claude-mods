@@ -74,11 +74,13 @@ describe('a translation', () => {
   test('a label that has to fit a fixed column keeps its cells, wide characters counted', ($, _on) => {
     // The two gutters are the only columns a label cannot degrade out of: the pane draws them at a
     // constant width and truncates whatever overruns, so a translation is held to them here.
-    const GUTTER = 10
+    // One cell is kept free, so a label never touches the value beside it.
+    const GUTTER = 12
     for (const tag of LANGUAGE_TAGS) {
-      const { why, fixLabel, time, context } = sayOf(tag).pane
-      for (const [name, label] of [['why', why], ['fix', fixLabel], ['time', time], ['context', context]] as const) {
-        expect(widthOf(label), `${tag}: ${name} is "${label}", ${widthOf(label)} cells of ${GUTTER}`).toBeLessThanOrEqual(GUTTER)
+      const { why, fixLabel, time, context, prefix, compaction, session, machine, repo } = sayOf(tag).pane
+      const labels = [['why', why], ['fix', fixLabel], ['time', time], ['context', context], ['prefix', prefix], ['compaction', compaction], ['session', session], ['machine', machine], ['repo', repo]] as const
+      for (const [name, label] of labels) {
+        expect(widthOf(label), `${tag}: ${name} is "${label}", ${widthOf(label)} cells of ${GUTTER}`).toBeLessThanOrEqual(GUTTER - 1)
       }
     }
   })

@@ -136,10 +136,10 @@ export const DE: PartialTexts = {
   },
 
   command: {
-    description: 'ContextManager: Panel ein- oder ausblenden · check | fix [n] [Text] | ignore <n> | debug | reset',
-    argumentHint: '[check | fix [n] [Text] | ignore <n> | debug | reset]',
+    description: 'ContextManager: Panel ein- oder ausblenden · check | fix [n] [Text] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset',
+    argumentHint: '[check | fix [n] [Text] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]',
 
-    usage: 'Verwendung: /manager [check | fix [n] [Text] | ignore <n> | debug | reset]',
+    usage: 'Verwendung: /manager [check | fix [n] [Text] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]',
     fixUsage: 'Verwendung: /manager fix [n] [Anweisung] (eine führende Zahl meint die Karte, die das Panel nummeriert; ohne Zahl: die Karte mit offenem Beheben…-Feld, sonst Karte 1)',
     paneShown: 'ContextManager-Panel eingeblendet',
     paneHidden: 'ContextManager-Panel ausgeblendet',
@@ -195,6 +195,32 @@ Everything a machine matches is never translated and stays exactly as specified 
     kindPrefix: 'Claude wiederholt ',
     instruction: text => `Anweisung des Nutzers (über ContextManager): ${text}`,
     kill: (kind, alternative) => `Stoppe dieses Verhalten für den Rest der Sitzung: ${kind}. Ab jetzt: ${alternative}`,
+  },
+
+  detect: {
+    rereadKind: path => `Claude wiederholt das Lesen von ${path}, obwohl sich dazwischen nichts geändert hat`,
+    rereadWhy: mal => `${zahl(mal, 'Mal', 'Mal')} gelesen, ohne Bearbeitung, Installation oder Formatierer dazwischen, der die Datei hätte ändern können.`,
+    rereadFix: path => `Arbeite mit dem, was du von ${path} schon gelesen hast; lies die Datei erst nach einer Änderung wieder, und dann nur die nötigen Zeilen.`,
+    fullSuiteKind: command => `Claude wiederholt die ganze \`${command}\`-Suite nach Änderungen an einer einzigen Datei`,
+    fullSuiteWhy: mal => `${zahl(mal, 'vollständiger Lauf', 'vollständige Läufe')}, jeder direkt nach der Änderung einer einzigen Datei; der erste Lauf und ein Lauf direkt vor einem Commit zählen nicht.`,
+    fullSuiteFix: 'Führe nur die Tests der geänderten Datei aus und die ganze Suite einmal am Ende der Phase.',
+    fullSuiteRuleTitle: 'Gezielte Tests',
+    fullSuiteRule: 'Führe nur die Tests der geänderten Dateien aus; die ganze Suite einmal am Ende einer Phase.',
+    sameSearchKind: search => `Claude wiederholt dieselbe Suche: ${search}`,
+    sameSearchWhy: mal => `${zahl(mal, 'identische Suche', 'identische Suchen')} ohne Änderung dazwischen: jede fand, was die vorige schon gefunden hatte.`,
+    sameSearchFix: 'Verwende das Ergebnis einer bereits gelaufenen Suche; wiederhole sie erst, wenn sich Dateien geändert haben.',
+    logDumpKind: command => `Claude wiederholt das Ausgeben eines ganzen Logs mit \`${command}\``,
+    logDumpWhy: (mal, chars) => `${zahl(mal, 'Lauf', 'Läufe')} mit je ${chars} Zeichen oder mehr, vollständig gelesen statt gefiltert.`,
+    logDumpFix: "Filtere ein Log vor dem Lesen: leite es durch grep -nE 'ERROR|FAIL|Traceback' und tail -n 50.",
+    logDumpRuleTitle: 'Gefilterte Logs',
+    logDumpRule: "Filtere Logs vor dem Lesen (grep -nE 'ERROR|FAIL|Traceback', tail -n 50); lies nie ein ganzes Log.",
+    prefixKind: {
+      model: 'Claude wiederholt den Modellwechsel mitten in der Sitzung, und jeder Wechsel schreibt den Prompt-Cache neu',
+      effort: 'Claude wiederholt den Wechsel der Effort-Stufe mitten in der Sitzung, und jeder Wechsel schreibt den Prompt-Cache neu',
+    },
+    prefixWhy: (mal, runden, tokens) =>
+      `${zahl(mal, 'Wechsel', 'Wechsel')} (${runden.includes(',') ? 'Runden' : 'Runde'} ${runden})${tokens === null ? '' : `; die Schritte danach schrieben ~${tokens} Tokens mehr in den Cache als ein gewöhnlicher Schritt`}.`,
+    prefixFix: 'Bleib für den Rest der Sitzung bei einem Modell und einer Effort-Stufe; wechsle sie zwischen Sitzungen oder direkt nach einem /compact.',
   },
 
   config: {

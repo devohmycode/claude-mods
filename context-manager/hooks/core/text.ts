@@ -9,6 +9,39 @@ export const median = (xs: number[]): number => {
   return sorted.length % 2 !== 0 ? (sorted[mid] ?? 0) : (((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2)
 }
 
+/**
+ * The value a share `q` of the sample sits under, interpolated between the two nearest; 0 for an empty sample.
+ *
+ * @param xs the sample, in any order
+ * @param q the share, 0..1: 0.25 the lower quartile, 0.5 the median, 0.75 the upper quartile
+ * @returns the quantile
+ */
+export const quantile = (xs: readonly number[], q: number): number => {
+  if (xs.length === 0) return 0
+  const sorted = [...xs].sort((a, b) => a - b)
+  const at = Math.min(1, Math.max(0, q)) * (sorted.length - 1)
+  const below = Math.floor(at)
+  const low = sorted[below] ?? 0
+  const high = sorted[Math.min(sorted.length - 1, below + 1)] ?? low
+  return low + (high - low) * (at - below)
+}
+
+/**
+ * FNV-1a over the text, six hex digits: the same text gives the same tag in every session, so an id or a
+ * file name built on it finds its way back.
+ *
+ * @param text what to tag
+ * @returns six lowercase hex digits
+ */
+export const hashOf = (text: string): string => {
+  let h = 0x811c9dc5
+  for (let i = 0; i < text.length; i += 1) {
+    h ^= text.charCodeAt(i)
+    h = Math.imul(h, 0x01000193) >>> 0
+  }
+  return h.toString(16).padStart(8, '0').slice(0, 6)
+}
+
 /** Returns chars/4/window*100 rounded to 1 decimal. */
 export const pctOf = (chars: number, window: number): number =>
   Math.round((chars / 4 / window) * 1000) / 10

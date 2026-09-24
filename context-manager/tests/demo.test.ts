@@ -126,6 +126,6 @@ describe('demo', () => {
     await $.session.start(SESSION)
 
     expect((await $.command.run(managerRun('demo'))).text)
-      .toBe('Usage: /manager [check | fix [n] [text] | ignore <n> | debug | reset]')
+      .toBe('Usage: /manager [check | fix [n] [text] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]')
   })
 })

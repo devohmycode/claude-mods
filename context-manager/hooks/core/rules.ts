@@ -1,13 +1,71 @@
 import { baseline } from './evidence'
 import { collapseWs, pctOf, slug } from './text'
-import { BRIEF_TOOLS, CLAUDE_MD_HEADING } from './types'
-import type { Artifact, ArtifactKind, Pattern, Proposal, State } from './types'
+import { BRIEF_TOOLS, CLAUDE_MD_HEADING, RULE_MARKER } from './types'
+import type { Artifact, ArtifactKind, ArtifactPreview, Pattern, Proposal, State } from './types'
 
-/** Renders one single-line CLAUDE.md bullet; the shell appends only this when the heading already exists. */
-export const bulletOf = (body: string): string => `- ${collapseWs(body).replace(/^[-*] /, '')}\n`
+// The id a written bullet carries, invisible where the file is rendered: `<!-- cm:execution:cm-full-suite-1a2b3c -->`.
+const MARKER = /\s*<!--\s*cm:([a-z-]+:[a-z0-9-]{1,40})\s*-->\s*$/
+
+/**
+ * Renders one single-line CLAUDE.md bullet; the shell appends only this when the heading already exists. With a
+ * pattern id, the bullet carries it in an HTML comment, so a later session can tell which rule it wrote.
+ */
+export const bulletOf = (body: string, patternId?: string): string =>
+  `- ${collapseWs(body).replace(/^[-*] /, '')}${patternId === undefined ? '' : ` <!-- ${RULE_MARKER}${patternId} -->`}\n`
 
 /** Returns the bullet alone from a claude-md artifact's content, for appending under an existing heading. */
 export const bulletOnly = (content: string): string => content.slice(Math.max(0, content.indexOf('\n- ') + 1))
+
+/** The rule a bullet states, without its dash and without its marker: what Claude reads, and what Try sends. */
+export const ruleText = (bullet: string): string => collapseWs(bullet.replace(MARKER, '')).replace(/^[-*] /, '')
+
+// Two bullets are one rule when they say the same thing: case and spacing are how it was typed, not what it says.
+const sameRule = (a: string, b: string): boolean => ruleText(a).toLowerCase() === ruleText(b).toLowerCase()
+
+/**
+ * The rules ContextManager wrote into a CLAUDE.md, by the id their marker carries. A bullet with no marker was
+ * written by a person, or before the marker existed, and is never ours to offer for removal.
+ *
+ * @param text the file
+ * @returns one entry per marked bullet, in file order
+ */
+export const markedRules = (text: string): { patternId: string; text: string }[] =>
+  text.split('\n').flatMap(line => {
+    const id = MARKER.exec(line)?.[1]
+    return id === undefined || !/^\s*[-*] /.test(line) ? [] : [{ patternId: id, text: ruleText(line) }]
+  })
+
+/**
+ * The file without the bullet a pattern's marker names; every other line kept as it was, the heading too.
+ *
+ * @param text the file
+ * @param patternId the rule to take out
+ * @returns the file to write back
+ */
+export const withoutRule = (text: string, patternId: string): string =>
+  text.split('\n').filter(line => MARKER.exec(line)?.[1] !== patternId).join('\n')
+
+/**
+ * What Write would do, before it does it: the lines it adds, whether the file already says it, and whether a
+ * whole-file write would replace one that is there. A duplicate is only what can be shown to be one — the same
+ * marker, the same bullet, the same file, the same permission — never a rule that merely disagrees.
+ *
+ * @param a the artifact
+ * @param existing the file as it stands, or null where there is none
+ * @returns the preview
+ */
+export const previewOf = (a: Artifact, existing: string | null): ArtifactPreview => {
+  const base = { patternId: a.patternId, kind: a.kind, path: a.path, mode: a.mode }
+  if (a.mode === 'merge-settings') {
+    const allow = recordOf(objectOf(existing)['permissions'])['allow']
+    return { ...base, added: a.content, duplicate: Array.isArray(allow) && allow.includes(a.content), overwrites: false }
+  }
+  if (a.mode === 'write') return { ...base, added: a.content, duplicate: existing === a.content, overwrites: existing !== null && existing !== a.content }
+  const bullet = bulletOnly(a.content)
+  const lines = (existing ?? '').split('\n')
+  const duplicate = lines.some(line => MARKER.exec(line)?.[1] === a.patternId || (/^\s*[-*] /.test(line) && sameRule(line, bullet)))
+  return { ...base, added: appendedTo(existing, a.content).slice((existing ?? '').length), duplicate, overwrites: false }
+}
 
 /** Appends an artifact's content to a file's text: the bullet alone under an existing heading, never glued to a line. */
 export const appendedTo = (existing: string | null, content: string): string => {
@@ -23,11 +81,11 @@ export const appendedTo = (existing: string | null, content: string): string => 
 const nameOf = (p: Proposal): string => slug(p.title) || slug(p.body) || 'rule'
 
 /** Renders the file an artifact kind writes: where it goes, what it says, how it lands. */
-export const render = (kind: ArtifactKind, p: Proposal, cwd: string): Pick<Artifact, 'path' | 'content' | 'mode'> => {
+export const render = (kind: ArtifactKind, p: Proposal, cwd: string, patternId?: string): Pick<Artifact, 'path' | 'content' | 'mode'> => {
   if (kind === 'skill') return { path: `${cwd}/.claude/skills/${nameOf(p)}/SKILL.md`, content: skillDoc(p), mode: 'write' }
   if (kind === 'agent-brief') return { path: `${cwd}/.claude/agents/${nameOf(p)}.md`, content: briefDoc(p), mode: 'write' }
   if (kind === 'settings-allow') return { path: `${cwd}/.claude/settings.json`, content: p.body, mode: 'merge-settings' }
-  return { path: `${cwd}/CLAUDE.md`, content: `\n${CLAUDE_MD_HEADING}\n${bulletOf(p.body)}`, mode: 'append' }
+  return { path: `${cwd}/CLAUDE.md`, content: `\n${CLAUDE_MD_HEADING}\n${bulletOf(p.body, patternId)}`, mode: 'append' }
 }
 
 /** Returns the artifacts that make this session's decisions permanent, largest saving first. */
@@ -52,7 +110,7 @@ const artifactsOf = (state: State, p: Pattern): Artifact[] => {
     kind: proposal.kind,
     title: proposal.title,
     savingPct: pctOf(baseline(state, p).chars * 3, state.usage.window),
-    ...render(proposal.kind, proposal, state.cwd),
+    ...render(proposal.kind, proposal, state.cwd, p.id),
   }]
 }
 

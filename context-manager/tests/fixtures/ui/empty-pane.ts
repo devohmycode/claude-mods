@@ -6,6 +6,10 @@ export const emptyPane: PaneModel = {
     percent: 12,
     tokensToCompaction: null,
     turnsToCompaction: null,
+    turnsRange: null,
+    prefix: null,
+    compaction: null,
+    info: { session: [], machine: [], repo: [] },
     trend: [],
     time: null,
     context: null,
@@ -24,4 +28,6 @@ export const emptyPane: PaneModel = {
   steerDraft: null,
   decided: [],
   artifacts: [],
+  preview: null,
+  stale: [],
 }

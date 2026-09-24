@@ -16,7 +16,7 @@
  * word that is typed or matched may not move with the language.
  */
 
-import type { ArtifactKind, Category, Choice } from '../core/types'
+import type { ArtifactKind, Category, Choice, PrefixCause } from '../core/types'
 
 /**
  * The pane: its header, its cards, the details behind `i`, and its footer.
@@ -31,11 +31,15 @@ export type PaneTexts = {
   toCompactionShort: (tokens: string) => string
   /** That run stated in turns, at the pace the last turns set. */
   turnsLeft: (turns: number) => string
+  /** The spread of that estimate: the fast and the slow pace of the recent turns. */
+  turnsRange: (low: number, high: number) => string
 
   /** What the audit has cost, at the end of the name row. */
   judge: string
   judgeRuns: (runs: number) => string
   judgeTokens: (amount: string) => string
+  /** What the audit has cost, as a share of the session's own tokens: beside the saving, never summed with it. */
+  auditCost: (share: number) => string
 
   /** What the session got back, and that a run is in flight. */
   saved: string
@@ -47,6 +51,27 @@ export type PaneTexts = {
   time: string
   context: string
   timeLead: string
+  /** The prefix row: what every request re-reads before the conversation, in the engine's tokens. */
+  prefix: string
+  prefixLead: string
+  /** The session row: the model, the limits, the cost, git, the skill, the version, the time, the machine. */
+  session: string
+  /** The machine row: the date and time, CPU, RAM and the Claude Code version. */
+  machine: string
+  /** The repository row: the branch, and the lines added and removed. */
+  repo: string
+  infoEffort: (effort: string) => string
+  /** A quota used, bare: its place in the row says which window it is. */
+  infoPercent: (percent: number) => string
+  infoSkill: (skill: string) => string
+  infoCpu: (percent: number) => string
+  infoRam: (percent: number) => string
+  /** The compaction row: when it came, and what had filled the window, as shares. */
+  compaction: string
+  compactedAt: (turn: number) => string
+  share: (label: string, percent: number) => string
+  /** The ledger's sink labels as the pane names them; a label not listed is drawn as the ledger wrote it. */
+  sinkNames: Readonly<Record<string, string>>
   contextLead: string
   nothingYet: string
 
@@ -101,6 +126,17 @@ export type PaneTexts = {
   write: string
   tryOnce: string
   skip: string
+  /** What Write would do, shown after the first press. */
+  previewConfirm: string
+  previewDuplicate: string
+  previewOverwrites: string
+  /** Written rules whose behaviour never came back, offered for removal. */
+  staleTitle: string
+  staleWhy: (sessions: number) => string
+  remove: string
+  keepIt: string
+  /** The card's fourth verb, where the `apply` lever is on: Fix, and rewrite the calls from now on. */
+  apply: string
 
   /** The inline pane's one count line, which stands in for the whole footer. */
   decidedCount: (decided: number) => string
@@ -150,6 +186,8 @@ export type BandTexts = {
   watching: string
   watched: (calls: number) => string
   quiet: string
+  /** The audit found nothing several runs in a row, so it now waits for more work between runs. */
+  slowed: string
 
   /** The button at the band's right edge. */
   open: string
@@ -203,6 +241,49 @@ export type CommandTexts = {
 
   /** The keyboard never reached the Fix… field, so the composer route is spelled out. */
   composerHasKeys: (seat: number) => string
+
+  /** `/manager stats`: the project's sessions, one line per behaviour, then the audit's cost. */
+  statsEmpty: (sessions: number) => string
+  statsHeader: (sessions: number) => string
+  statsLine: (row: { kind: string; sessions: number; seen: number; fixed: number; ignored: number; savedTime: string | null; savedChars: string | null; byCode: boolean; muted: boolean }) => string
+  statsMore: (rows: number) => string
+  statsAudit: (runs: number, tokens: string) => string
+  /** No home directory to keep a history under. */
+  historyUnavailable: string
+  /** `/manager report`: the Markdown file, and what the command answers. */
+  reportTitle: (date: string) => string
+  reportFacts: (turns: number, calls: number, compactions: number) => string
+  reportFound: string
+  reportNothing: string
+  reportUndecided: string
+  reportByCode: string
+  reportByJudge: string
+  reportSaved: string
+  reportSavedTime: (time: string) => string
+  reportSavedContext: (chars: string, percent: number) => string
+  reportAudit: string
+  reportAuditLine: (runs: number, tokens: string, share: number | null) => string
+  reportContext: string
+  reportWritten: (path: string) => string
+  /** Apply: the note a rewritten call carries to Claude, and what the person is told. */
+  appliedNote: (original: string, rewritten: string, after: string) => string
+  appliedSuiteAfter: string
+  appliedLogAfter: string
+  appliedOn: (kind: string) => string
+  appliedStopped: (kind: string) => string
+  applyOff: string
+  notApplicable: (seat: number) => string
+  /** A second Write on a rule the file already carries. */
+  alreadyThere: (path: string) => string
+  /** A stale rule taken out of CLAUDE.md. */
+  removed: (path: string) => string
+  /** The toast a compaction gets: when, and what had filled the window. */
+  compacted: (turn: number, shares: string) => string
+
+  /** `/manager unmute <id>`. */
+  unmuteUsage: string
+  unmuted: (id: string) => string
+  notMuted: (id: string) => string
 }
 
 /**
@@ -237,6 +318,42 @@ export type JudgeTexts = {
 }
 
 /**
+ * What the deterministic detectors write on a card: the plugin's own words, not the
+ * judge's, so every language needs them. `kind` opens with the language's
+ * `judge.kindPrefix`, so a card reads the same whoever found it; the `…Fix` lines
+ * reach Claude verbatim, like a judge's `alternative`, and the `…Rule` lines may be
+ * written into CLAUDE.md.
+ */
+export type DetectTexts = {
+  rereadKind: (path: string) => string
+  rereadWhy: (times: number) => string
+  rereadFix: (path: string) => string
+  fullSuiteKind: (command: string) => string
+  fullSuiteWhy: (times: number) => string
+  fullSuiteFix: string
+  fullSuiteRuleTitle: string
+  fullSuiteRule: string
+  sameSearchKind: (search: string) => string
+  sameSearchWhy: (times: number) => string
+  sameSearchFix: string
+  logDumpKind: (command: string) => string
+  logDumpWhy: (times: number, chars: string) => string
+  logDumpFix: string
+  logDumpRuleTitle: string
+  logDumpRule: string
+  reExploreKind: string
+  reExploreWhy: (loops: number, looks: number, chars: string) => string
+  reExploreFix: string
+  reExploreBriefTitle: string
+  reExploreBrief: string
+  /** The switch, by what switched. */
+  prefixKind: Record<PrefixCause, string>
+  /** How often, at which turns, and the cache the steps after rewrote beyond a normal step's — null before a normal step was measured. */
+  prefixWhy: (times: number, turns: string, tokens: string | null) => string
+  prefixFix: string
+}
+
+/**
  * The `/config` rows this plugin owns, as the settings menu lists them.
  */
 export type ConfigTexts = {
@@ -254,6 +371,7 @@ export type Texts = {
   command: CommandTexts
   categories: CategoryTexts
   judge: JudgeTexts
+  detect: DetectTexts
   config: ConfigTexts
 }
 
@@ -267,8 +385,8 @@ export type PartialTexts = {
   [Group in keyof Texts]?: Partial<Texts[Group]>
 }
 
-/** '2 runs', '1 run': the count and the word it takes. */
-const counted = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
+/** '2 runs', '1 run': the count and the word it takes; `plural` where an `s` is not the plural. */
+const counted = (n: number, word: string, plural = `${word}s`): string => `${n} ${n === 1 ? word : plural}`
 
 /**
  * English: the complete bundle, and the fallback for every other language.
@@ -280,10 +398,12 @@ export const EN: Texts = {
     toCompaction: tokens => `${tokens} tokens to compaction`,
     toCompactionShort: tokens => `${tokens} to compaction`,
     turnsLeft: turns => `about ${counted(turns, 'turn')}`,
+    turnsRange: (low, high) => `(${low}–${high})`,
 
     judge: 'Judge ',
     judgeRuns: runs => counted(runs, 'run'),
     judgeTokens: amount => `${amount} tokens`,
+    auditCost: share => `audit ${share}% of session tokens`,
 
     saved: 'Saved ',
     checkNow: 'Check now',
@@ -293,6 +413,20 @@ export const EN: Texts = {
     time: 'Time',
     context: 'Context',
     timeLead: 'in tools',
+    session: 'Session',
+    machine: 'Information',
+    repo: 'Repo',
+    infoEffort: effort => `effort ${effort}`,
+    infoPercent: percent => `${percent}%`,
+    infoSkill: skill => `skill ${skill}`,
+    infoCpu: percent => `CPU ${percent}%`,
+    infoRam: percent => `RAM ${percent}%`,
+    prefix: 'Prefix',
+    prefixLead: 'tokens every request',
+    compaction: 'Compaction',
+    compactedAt: turn => `at turn ${turn}`,
+    share: (label, percent) => `${label} ${percent}%`,
+    sinkNames: {},
     contextLead: 'from tools',
     nothingYet: 'nothing stands out yet',
 
@@ -342,6 +476,14 @@ export const EN: Texts = {
     write: 'Write',
     tryOnce: 'Try',
     skip: 'Skip',
+    previewConfirm: 'Write again to write it',
+    previewDuplicate: 'already in the file — nothing to write',
+    previewOverwrites: 'replaces the file that is there',
+    staleTitle: 'Rules that never fired',
+    staleWhy: sessions => `its behaviour never came back in ${counted(sessions, 'session')}, and was a one-off before`,
+    remove: 'Remove',
+    keepIt: 'Keep',
+    apply: 'Apply',
 
     decidedCount: decided => `Decided ${decided}`,
     rulesCount: rules => `Rules ${rules}`,
@@ -379,16 +521,17 @@ export const EN: Texts = {
     watching: 'watching',
     watched: calls => `${calls} calls watched`,
     quiet: 'nothing wasteful yet',
+    slowed: 'audit slowed: the last checks found nothing',
 
     open: 'Open',
     close: 'Close',
   },
 
   command: {
-    description: 'ContextManager: toggle the pane · check | fix [n] [text] | ignore <n> | debug | reset',
-    argumentHint: '[check | fix [n] [text] | ignore <n> | debug | reset]',
+    description: 'ContextManager: toggle the pane · check | fix [n] [text] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset',
+    argumentHint: '[check | fix [n] [text] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]',
 
-    usage: 'Usage: /manager [check | fix [n] [text] | ignore <n> | debug | reset]',
+    usage: 'Usage: /manager [check | fix [n] [text] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]',
     fixUsage: 'Usage: /manager fix [n] [instruction] (a leading number is the card the pane draws; without one: the card whose Fix… field is open, else card 1)',
     paneShown: 'ContextManager pane shown',
     paneHidden: 'ContextManager pane hidden',
@@ -420,6 +563,45 @@ export const EN: Texts = {
     trying: title => `Trying "${title}" for this session`,
 
     composerHasKeys: seat => `ContextManager: the composer has your keys — type /manager fix ${seat} <your note>`,
+
+    statsEmpty: sessions => `ContextManager: nothing recorded yet in this project (${counted(sessions, 'session')})`,
+    statsHeader: sessions => `ContextManager — this project, ${counted(sessions, 'session')}:`,
+    statsLine: r => {
+      const saved = [r.savedTime, r.savedChars === null ? null : `${r.savedChars} chars`].filter((x): x is string => x !== null)
+      const tags = [r.byCode ? 'found by code' : null, r.muted ? 'muted' : null].filter((x): x is string => x !== null)
+      return `- ${r.kind} — ${r.seen}× in ${counted(r.sessions, 'session')} · fixed ${r.fixed} · ignored ${r.ignored}${saved.length === 0 ? '' : ` · saved ${saved.join(' · ')}`}${tags.length === 0 ? '' : ` [${tags.join(', ')}]`}`
+    },
+    appliedNote: (original, rewritten, after) => `[ContextManager] ran \`${rewritten}\` instead of \`${original}\`, as the user asked — ${after}`,
+    appliedSuiteAfter: 'run the original command again to get the whole suite.',
+    appliedLogAfter: 'read the file itself for the rest of it.',
+    appliedOn: kind => `ContextManager: applied — the next calls are rewritten: ${kind}`,
+    appliedStopped: kind => `ContextManager: Apply stopped — Claude ran the original twice right after a rewrite: ${kind}`,
+    applyOff: 'ContextManager: Apply is off — turn on the apply row in /config',
+    notApplicable: seat => `ContextManager: card ${seat} has no rewrite; use /manager fix ${seat}`,
+    reportTitle: date => `ContextManager — session report, ${date} UTC`,
+    reportFacts: (turns, calls, compactions) => `${counted(turns, 'turn')} · ${counted(calls, 'tool call')} · ${counted(compactions, 'compaction')}`,
+    reportFound: 'What repeated',
+    reportNothing: 'Nothing.',
+    reportUndecided: 'not decided',
+    reportByCode: 'found by code',
+    reportByJudge: 'found by the audit',
+    reportSaved: 'What the decisions saved',
+    reportSavedTime: time => `time: ${time}`,
+    reportSavedContext: (chars, percent) => `context: ${chars} characters (~${percent}% of the window)`,
+    reportAudit: 'What the audit cost',
+    reportAuditLine: (runs, tokens, share) => `${counted(runs, 'run')} · ${tokens} tokens${share === null ? '' : ` (${share}% of the session's new tokens)`}`,
+    reportContext: 'Where the context went',
+    reportWritten: path => `ContextManager: report written to ${path}`,
+    alreadyThere: path => `ContextManager: ${path} already says this — nothing written`,
+    removed: path => `ContextManager: rule removed from ${path}`,
+    compacted: (turn, shares) => `ContextManager: compacted at turn ${turn} — ${shares}`,
+    statsMore: rows => `… and ${counted(rows, 'more behaviour')}`,
+    statsAudit: (runs, tokens) => `Audit: ${counted(runs, 'run')} · ${tokens} tokens`,
+    historyUnavailable: "ContextManager: no home directory to keep this project's history in",
+
+    unmuteUsage: 'Usage: /manager unmute <pattern id> (the ids /manager debug lists as muted)',
+    unmuted: id => `ContextManager: ${id} will be reported again in this project`,
+    notMuted: id => `ContextManager: ${id} is not muted in this project`,
   },
 
   categories: {
@@ -440,6 +622,37 @@ export const EN: Texts = {
     kindPrefix: 'Claude keeps ',
     instruction: text => `Instruction from the user (via ContextManager): ${text}`,
     kill: (kind, alternative) => `Stop this behaviour for the rest of the session: ${kind}. From now on: ${alternative}`,
+  },
+
+  detect: {
+    rereadKind: path => `Claude keeps re-reading ${path} with nothing changed in between`,
+    rereadWhy: times => `Read ${counted(times, 'time')}, with no edit, install or formatter that could have changed the file between the reads.`,
+    rereadFix: path => `Work from what you already read of ${path}; read it again only after it changes, and then only the lines you need.`,
+    fullSuiteKind: command => `Claude keeps running the whole \`${command}\` suite after one-file edits`,
+    fullSuiteWhy: times => `${counted(times, 'full run')}, each right after an edit to a single file; the first run and a run just before a commit are not counted.`,
+    fullSuiteFix: 'Run only the tests covering the file you changed, then the whole suite once when the phase is done.',
+    fullSuiteRuleTitle: 'Targeted tests',
+    fullSuiteRule: 'Run only the tests covering the files you changed; run the full suite once at the end of a phase.',
+    sameSearchKind: search => `Claude keeps running the same search: ${search}`,
+    sameSearchWhy: times => `${counted(times, 'identical search', 'identical searches')} with no edit between them, so each one found what the last one did.`,
+    sameSearchFix: 'Reuse the result of a search you already ran; run it again only after files have changed.',
+    logDumpKind: command => `Claude keeps dumping a whole log with \`${command}\``,
+    logDumpWhy: (times, chars) => `${counted(times, 'run')} of ${chars} characters or more each, read in full rather than filtered.`,
+    logDumpFix: "Filter a log before reading it: pipe it through grep -nE 'ERROR|FAIL|Traceback' and tail -n 50.",
+    logDumpRuleTitle: 'Filtered logs',
+    logDumpRule: "Filter logs before reading them (grep -nE 'ERROR|FAIL|Traceback', tail -n 50); never read a whole log.",
+    reExploreKind: 'Claude keeps having subagents re-read files the main session had already read',
+    reExploreWhy: (loops, looks, chars) => `${counted(loops, 'subagent')} re-read ${counted(looks, 'file or search', 'files or searches')} the main session had already read before spawning them, ${chars} characters over again.`,
+    reExploreFix: "Put what you already read into the subagent's brief — the paths and what matters in them — so it reads only what is new.",
+    reExploreBriefTitle: 'Reuse the parent reads',
+    reExploreBrief: 'The parent has already read the files this brief names and summarises what matters in them; read one of them again only to edit it or to check a detail the summary leaves out.',
+    prefixKind: {
+      model: 'Claude keeps switching models mid-session, and each switch rewrites the prompt cache',
+      effort: 'Claude keeps switching the effort level mid-session, and each switch rewrites the prompt cache',
+    },
+    prefixWhy: (times, turns, tokens) =>
+      `${counted(times, 'switch', 'switches')} (${turns.includes(',') ? 'turns' : 'turn'} ${turns})${tokens === null ? '' : `; the steps right after them wrote ~${tokens} tokens more to the cache than a usual step`}.`,
+    prefixFix: 'Keep one model and one effort level for the rest of this session; change them between sessions or right after a /compact.',
   },
 
   config: {

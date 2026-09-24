@@ -634,6 +634,8 @@ describe('patterns', () => {
         { turn: 8, what: 'bun test', agent: null, ms: 45_000, chars: 9_600, head: '✓ 212 passed' },
         { turn: 5, what: 'bun test', agent: null, ms: 60_000, chars: 9_000, head: '✓ 212 passed' },
       ],
+      // The `apply` row is off, and a pattern the judge found has no rewrite anyway.
+      canApply: false,
     })
     expect(cardIn(p, state, 3).n, 'the card knows the seat the pane drew it in').toBe(3)
     expect(cardIn({ ...p, ignored: 1 }, state, 1).kind).toBe(`ignored · ${suitePattern.kind}`)
@@ -727,6 +729,12 @@ describe('patterns', () => {
     const model = paneModel(state, [claudeMdArtifact])
     expect(model.header).toEqual({
       percent: 64, tokensToCompaction: 52_000, turnsToCompaction: 4,
+      // A steady 12k a turn: the fast and the slow pace agree, so there is no spread to state.
+      turnsRange: null,
+      // Nothing measured the prefix and no compaction came: neither row has anything to say.
+      prefix: null, compaction: null,
+      // No step named a model, nothing read the limits, git or the machine, and no clock was read yet.
+      info: { session: [], machine: [], repo: [] },
       trend: [40, 46, 52, 58, 64],
       time: { total: 62_000, sinks: [{ label: 'tests', amount: 60_000, count: 1 }, { label: 'reads', amount: 2_000, count: 1 }] },
       context: { total: 49_000, sinks: [{ label: 'reads', amount: 40_000, count: 1 }, { label: 'tests', amount: 9_000, count: 1 }] },
@@ -752,7 +760,7 @@ describe('patterns', () => {
       .toMatchObject({ instruction: null })
     expect(model.artifacts).toEqual([claudeMdArtifact])
     // A run in flight wins over a card waiting, a card waiting over a saving to show off (§5.5).
-    expect(bandModel(state)).toEqual({ state: 'checking', died: null, running: null, fresh: 1, costPct: 1.1, costMs: 60_000, savedPct: 4.5, savedMs: 192_000, calls: 2, paneOpen: false })
+    expect(bandModel(state)).toEqual({ state: 'checking', died: null, running: null, fresh: 1, costPct: 1.1, costMs: 60_000, savedPct: 4.5, savedMs: 192_000, calls: 2, paneOpen: false, slowed: false })
     const quietJudge = { ...state, judge: { ...state.judge, running: false } }
     expect(bandModel(quietJudge), 'the waiting card and what it has already cost').toMatchObject({ state: 'found', costPct: 1.1, costMs: 60_000 })
     expect(bandModel({ ...quietJudge, cards: [] }), 'nothing waiting, so the saving is the news').toMatchObject({ state: 'saved', costPct: 0, costMs: 0 })
@@ -760,7 +768,7 @@ describe('patterns', () => {
     expect(empty.wasters).toEqual([])
     expect(empty.decided).toEqual([])
     expect(empty.header).toMatchObject({ percent: null, tokensToCompaction: null, turnsToCompaction: null, savedPct: 0 })
-    expect(bandModel(seedState())).toEqual({ state: 'watching', died: null, running: null, fresh: 0, costPct: 0, costMs: 0, savedPct: 0, savedMs: 0, calls: 0, paneOpen: false })
+    expect(bandModel(seedState())).toEqual({ state: 'watching', died: null, running: null, fresh: 0, costPct: 0, costMs: 0, savedPct: 0, savedMs: 0, calls: 0, paneOpen: false, slowed: false })
   })
 
   test('tokensToCompaction and turnsToCompaction fall back and go null', async () => {
