@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mods Claude Code</title>
+<meta name="description" content="Fonctionnement des mods Claude Code (function hooks, early access) et guide technique complet : chaîne de hooks, événements, nouns de $, UI, tests, recettes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#faf9f5; --surface:#ffffff; --surface-2:#f2efe6; --ink:#1f1e1a; --ink-2:#56534a; --ink-3:#8a867a;
+  --line:#e3dfd3; --accent:#c96442; --accent-soft:#f6e3da; --accent-ink:#9a4427;
+  --ok:#2f7d4f; --ok-soft:#e1f1e6; --warn:#a2650d; --warn-soft:#fbefd9; --bad:#b0362b; --bad-soft:#f8e1de;
+  --info:#2d5f9a; --info-soft:#e1ebf7;
+  --code-bg:#1d1c19; --code-ink:#ece8dc; --code-dim:#9c978a; --code-key:#e59a78; --code-str:#a9cf8e; --code-com:#7d786c;
+  --t1:#c96442; --t2:#2d5f9a; --t3:#7a5aa6; --t4:#2f7d4f; --t5:#56534a;
+  --radius:10px; --maxw:880px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#181715; --surface:#201f1c; --surface-2:#2a2825; --ink:#ece8dc; --ink-2:#b9b4a6; --ink-3:#8a8579;
+    --line:#35332e; --accent:#e0825f; --accent-soft:#3a2820; --accent-ink:#f0a584;
+    --ok:#6cc08b; --ok-soft:#1f3326; --warn:#e3a94f; --warn-soft:#3a2d17; --bad:#ec7b6f; --bad-soft:#3d211e;
+    --info:#7eaee6; --info-soft:#1d2a3b;
+    --code-bg:#11100e; --t5:#b9b4a6;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#181715; --surface:#201f1c; --surface-2:#2a2825; --ink:#ece8dc; --ink-2:#b9b4a6; --ink-3:#8a8579;
+  --line:#35332e; --accent:#e0825f; --accent-soft:#3a2820; --accent-ink:#f0a584;
+  --ok:#6cc08b; --ok-soft:#1f3326; --warn:#e3a94f; --warn-soft:#3a2d17; --bad:#ec7b6f; --bad-soft:#3d211e;
+  --info:#7eaee6; --info-soft:#1d2a3b;
+  --code-bg:#11100e; --t5:#b9b4a6;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:24px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-decoration-thickness:1px;text-underline-offset:3px}
+code,pre,kbd{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace}
+:not(pre)>code{font-size:.86em;background:var(--surface-2);border:1px solid var(--line);padding:.08em .38em;border-radius:5px;white-space:nowrap}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:48px;max-width:1240px;margin:0 auto;padding:0 24px}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:32px 0 32px;font-size:14px}
+nav.toc .brand{display:flex;align-items:center;gap:10px;font-weight:700;margin-bottom:22px}
+nav.toc .brand svg{flex:none}
+nav.toc ol{list-style:none;margin:0;padding:0;counter-reset:s}
+nav.toc li{margin:0}
+nav.toc a{display:block;padding:5px 10px;border-radius:7px;color:var(--ink-2);text-decoration:none;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--surface-2);color:var(--ink)}
+nav.toc a.on{color:var(--accent-ink);background:var(--accent-soft);border-left-color:var(--accent)}
+nav.toc .theme{margin-top:20px;display:flex;gap:6px}
+nav.toc .theme button{flex:1;font:inherit;font-size:12px;padding:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:7px;cursor:pointer}
+nav.toc .theme button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent-ink)}
+main{max-width:var(--maxw);padding:40px 0 120px;min-width:0}
+header.hero{padding:24px 0 36px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.eyebrow{display:inline-flex;gap:8px;align-items:center;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-soft);padding:4px 10px;border-radius:99px}
+h1,h2,h3{font-family:"Source Serif 4",Georgia,serif;line-height:1.2;letter-spacing:-.01em}
+h1{font-size:clamp(34px,5vw,50px);margin:16px 0 14px}
+h2{font-size:30px;margin:72px 0 14px;padding-top:8px}
+h2 .n{color:var(--accent);font-weight:600;margin-right:10px}
+h3{font-size:21px;margin:36px 0 10px}
+h4{font-size:15px;margin:22px 0 6px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2)}
+.lede{font-size:19px;color:var(--ink-2);max-width:720px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:20px;font-size:13px;color:var(--ink-3)}
+.meta b{color:var(--ink-2);font-weight:600}
+p{margin:12px 0}
+ul,ol{padding-left:22px}
+li{margin:4px 0}
+pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:var(--radius);overflow:auto;font-size:13.2px;line-height:1.6;margin:16px 0}
+pre .c{color:var(--code-com);font-style:italic}
+pre .k{color:var(--code-key)}
+pre .s{color:var(--code-str)}
+pre .d{color:var(--code-dim)}
+.file{font-size:12px;color:var(--ink-3);margin:18px 0 -10px;font-family:"JetBrains Mono",monospace}
+.callout{border:1px solid var(--line);border-left:4px solid var(--info);background:var(--info-soft);border-radius:var(--radius);padding:12px 16px;margin:18px 0}
+.callout.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.callout.bad{border-left-color:var(--bad);background:var(--bad-soft)}
+.callout.ok{border-left-color:var(--ok);background:var(--ok-soft)}
+.callout.gold{border-left-color:var(--accent);background:var(--accent-soft)}
+.callout>strong:first-child{display:block;margin-bottom:2px}
+.callout p{margin:6px 0}
+.table-wrap{overflow-x:auto;margin:16px 0;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{background:var(--surface-2);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2)}
+tr:last-child td{border-bottom:0}
+td code{white-space:nowrap}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:18px 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.card h4{margin:0 0 6px;text-transform:none;letter-spacing:0;font-size:16px;color:var(--ink)}
+.card p{margin:0;font-size:14px;color:var(--ink-2)}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line);margin-right:4px}
+figure{margin:22px 0}
+figure svg,figure img{display:block;width:100%;height:auto;border-radius:var(--radius)}
+figure img{border:1px solid var(--line);background:var(--surface)}
+figcaption{font-size:13px;color:var(--ink-3);margin-top:8px}
+figure img.on-white{background:#fff;padding:12px}
+figure.narrow{max-width:560px}
+.dark-only{display:none}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .dark-only{display:block}:root:not([data-theme="light"]) .light-only{display:none}}
+:root[data-theme="dark"] .dark-only{display:block}
+:root[data-theme="dark"] .light-only{display:none}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:28px;align-items:center}
+.hero-grid img{width:100%;border-radius:14px}
+@media (max-width:700px){.hero-grid{grid-template-columns:1fr}.hero-grid img{max-width:180px}}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.steps{counter-reset:st;list-style:none;padding:0}
+.steps>li{counter-increment:st;position:relative;padding-left:40px;margin:14px 0}
+.steps>li::before{content:counter(st);position:absolute;left:0;top:1px;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center}
+details{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);margin:12px 0}
+details>summary{cursor:pointer;padding:10px 14px;font-weight:600}
+details>div{padding:0 14px 8px}
+.src{font-size:14px}
+.src li{margin:6px 0}
+footer{margin-top:80px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-3)}
+.menu-btn{display:none}
+@media (max-width:980px){
+  .layout{grid-template-columns:1fr;gap:0;padding:0 16px}
+  nav.toc{position:fixed;inset:0 30% 0 0;z-index:10;background:var(--bg);border-right:1px solid var(--line);padding:24px 16px;transform:translateX(-105%);transition:transform .2s}
+  nav.toc.open{transform:none}
+  .menu-btn{display:inline-flex;position:fixed;right:16px;bottom:16px;z-index:11;border:0;background:var(--accent);color:#fff;font:600 14px Inter,sans-serif;padding:10px 14px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+  main{padding-top:16px}
+  .grid2{grid-template-columns:minmax(0,1fr)}
+  .grid2>*{min-width:0}
+  h2{font-size:25px}
+  :not(pre)>code{white-space:normal;overflow-wrap:anywhere}
+  td code{white-space:normal}
+  .cards{grid-template-columns:minmax(0,1fr)}
+  main,section,header.hero{max-width:100%;overflow-wrap:break-word}
+}
+</style>
+</head>
+<body>
+<button class="menu-btn" id="menuBtn" aria-controls="toc" aria-expanded="false">Sommaire</button>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Sommaire">
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path fill="var(--accent)" d="M12 1.5l2.6 7.1 7.4.4-5.8 4.7 2 7.3L12 16.9 5.8 21l2-7.3L2 9l7.4-.4z"/></svg>
+    Mods Claude Code
+  </div>
+  <ol>
+    <li><a href="#intro">1. Qu'est-ce qu'un mod ?</a></li>
+    <li><a href="#activer">2. Activer et installer</a></li>
+    <li><a href="#anatomie">3. Anatomie d'un mod</a></li>
+    <li><a href="#chaine">4. La chaîne <code>($, e, next)</code></a></li>
+    <li><a href="#regles">5. Les règles du chargeur</a></li>
+    <li><a href="#cycle">6. Cycle de vie d'une session</a></li>
+    <li><a href="#evenements">7. Catalogue des événements</a></li>
+    <li><a href="#nouns">8. Les nouns de <code>$</code></a></li>
+    <li><a href="#ui">9. Dessiner : l'UI</a></li>
+    <li><a href="#etendre">10. Étendre <code>$</code> : contrats</a></li>
+    <li><a href="#classic">11. Hooks classiques</a></li>
+    <li><a href="#config">12. Options et <code>/config</code></a></li>
+    <li><a href="#tests">13. Tester un mod</a></li>
+    <li><a href="#outils">14. Outils et boucle de travail</a></li>
+    <li><a href="#officiels">15. Les mods existants</a></li>
+    <li><a href="#recettes">16. Recettes</a></li>
+    <li><a href="#pieges">17. Pièges et bonnes pratiques</a></li>
+    <li><a href="#sources">18. Sources</a></li>
+  </ol>
+  <div class="theme" role="group" aria-label="Thème">
+    <button data-t="auto" aria-pressed="true">Auto</button>
+    <button data-t="light" aria-pressed="false">Clair</button>
+    <button data-t="dark" aria-pressed="false">Sombre</button>
+  </div>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="hero-grid">
+  <div>
+  <span class="eyebrow">Early access · Claude Code ≥ 2.1.280</span>
+  <h1>Les mods de Claude Code</h1>
+  <p class="lede">Comment fonctionnent les <em>function hooks</em> — les plugins dont tout le comportement tient dans un module TypeScript — et le guide technique de tout ce qu'ils permettent : intercepter, réécrire, refuser ou répondre à chaque événement du moteur, dessiner dans le terminal, ajouter des outils, des commandes, des agents, et étendre <code>$</code> lui-même.</p>
+  </div>
+  <img src="img/claude-code-terminal.webp" alt="Illustration du terminal Claude Code : « Welcome to Claude Code »" width="200" height="200">
+  </div>
+  <div class="meta">
+    <span><b>Déclarations de référence :</b> <code>types/claude-code.d.ts</code> écrit par Claude Code 2.1.280</span>
+    <span><b>Source officielle :</b> <a href="https://github.com/anthropics/claude-code/tree/main/mods">anthropics/claude-code/mods</a></span>
+    <span><b>Mis à jour :</b> 23 septembre 2026</span>
+  </div>
+</header>
+
+<div class="callout warn">
+  <strong>Fonctionnalité en préversion</strong>
+  <p>Les modules de hooks ne se chargent que là où les <em>function hooks</em> sont activés, et l'API contre laquelle ils sont écrits « peut changer d'une version à l'autre sans préavis » (README officiel). Tout ce qui suit est vérifié contre les déclarations 2.1.280 ; en cas de doute, la première ligne de <code>types/claude-code.d.ts</code> dit quelle version l'a écrit — c'est elle qui fait foi.</p>
+</div>
+
+<!-- ============================================================ 1 -->
+<section id="intro">
+<h2><span class="n">1</span>Qu'est-ce qu'un mod ?</h2>
+<p>Un <strong>mod</strong> est un plugin Claude Code dont le comportement vit dans un <strong>module de hooks</strong> : une seule fonction d'entrée, <code>register(on, options)</code>, qui accroche des fonctions aux événements du moteur. Chaque hook a la forme <code>($, e, next)</code> :</p>
+<ul>
+  <li><code>$</code> — l'interface du moteur (lire des fichiers, lancer un processus, ouvrir un pane, appeler un modèle…), organisée en <em>nouns</em> : <code>$.fs.read</code>, <code>$.ui.open</code>, <code>$.session.id</code>…</li>
+  <li><code>e</code> — l'argument de l'événement, gelé en profondeur (<code>Frozen&lt;T&gt;</code>) : on ne le modifie pas, on en passe une copie.</li>
+  <li><code>next</code> — la suite de la chaîne : les hooks en dessous puis le cœur (<em>core</em>). L'appeler, c'est laisser l'effet avoir lieu.</li>
+</ul>
+<p>Là où les <em>hooks classiques</em> de <code>settings.json</code> lancent une commande shell qui observe un JSON et répond par un code de sortie, un hook de fonction <strong>est dans le chemin d'exécution</strong> : il peut réécrire l'entrée, remplacer la sortie, refuser, ou répondre à la place du moteur — et il reçoit une API typée pour le faire.</p>
+
+<div class="cards">
+  <div class="card"><h4>Observer</h4><p>Laisser passer avec <code>return next(e)</code>, en notant ce qui passe (compteurs, journal, télémétrie).</p></div>
+  <div class="card"><h4>Réécrire</h4><p><code>next({ ...e, text })</code> : la suite de la chaîne voit l'entrée modifiée ; ou transformer le résultat que <code>next</code> rend.</p></div>
+  <div class="card"><h4>Refuser</h4><p><code>return { deny: "raison" }</code> sans appeler <code>next</code> : l'effet n'a pas lieu, la raison remonte (au modèle, pour un outil).</p></div>
+  <div class="card"><h4>Répondre</h4><p><code>{ value }</code>, <code>{ result }</code>, <code>{ text }</code>… : le hook tient lieu de cœur. Pas de <code>next</code> = ça n'a pas eu lieu.</p></div>
+</div>
+
+<p>Anthropic livre quatre mods <strong>intégrés au binaire</strong> (tier <code>builtin</code>), dont la source est publiée dans <a href="https://github.com/anthropics/claude-code/tree/main/mods"><code>mods/</code></a> : <code>sec-default</code>, <code>diff</code>, <code>telemetry</code> et <code>agents-md</code>. Des fonctionnalités que l'on croirait du cœur — le panneau <code>/diff</code>, la lecture de <code>AGENTS.md</code> — sont en fait des mods : c'est la meilleure preuve de ce que l'API permet.</p>
+
+<h3>D'où vient la fonctionnalité</h3>
+<p>Il n'existe pas encore de page consacrée aux mods dans la documentation officielle (<code>code.claude.com/docs</code>), et le CHANGELOG ne les cite pas. La source canonique est l'issue <a href="https://github.com/anthropics/claude-code/issues/91870">#91870 « Mods — make Claude 10x more extensible »</a>, ouverte le 3 septembre 2026 par l'auteur de la fonctionnalité chez Anthropic, avec un PDF d'architecture (<em>Function Hooks Core Architecture</em>) et une cheat sheet. Depuis la mise à jour du 9 septembre, le nom produit est <strong>Claude Mods</strong> ; <em>function hook</em> reste le nom de la primitive.</p>
+<div class="callout"><strong>Isolation</strong><p>D'après l'auteur : les plugins tournent dans un Bun Worker, chacun enveloppé dans un contexte <code>node:vm</code>, sans accès ambiant — tout passe par <code>$</code>. Objectif annoncé : environ 50 µs au p99 par hook. Revers noté par une étude de sécurité tierce (Pluto Security) : un mod reste du code de confiance, capable par <code>$.http.fetch</code> et <code>$.process.run</code> de tout ce que peut le processus ; il n'y a pas encore d'écran de permissions à l'installation.</p></div>
+</section>
+
+<!-- ============================================================ 2 -->
+<section id="activer">
+<h2><span class="n">2</span>Activer et installer</h2>
+<h3>Deux prérequis</h3>
+<ol class="steps">
+  <li><strong>Une version récente.</strong> Les mods de ce dépôt sont vérifiés contre <strong>Claude Code 2.1.280</strong> ; <code>claude --version</code> dit sur quel build vous êtes.</li>
+  <li><strong>La variable d'environnement.</strong> Un module de hooks n'est chargé que si <code>CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1</code> est dans l'environnement. Sans elle, le plugin est installé… et ses hooks ne tournent jamais, sans message d'erreur.</li>
+</ol>
+<pre><span class="c"># bash, zsh — dans ~/.bashrc ou ~/.zshrc</span>
+<span class="k">export</span> CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1
+
+<span class="c"># PowerShell, pour la session courante</span>
+$env:CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = <span class="s">"1"</span>
+
+<span class="c"># Windows, une fois pour toutes</span>
+setx CLAUDE_CODE_ENABLE_FUNCTION_HOOKS 1</pre>
+
+<h3>Installer depuis une marketplace</h3>
+<div class="grid2">
+<div>
+<p class="file">dans une session Claude Code</p>
+<pre>/plugin marketplace add devohmycode/claude-mods
+/plugin install cockpit@claude-devohmycode-mods</pre>
+</div>
+<div>
+<p class="file">depuis le shell</p>
+<pre>claude plugin marketplace add devohmycode/claude-mods
+claude plugin install cockpit@claude-devohmycode-mods</pre>
+</div>
+</div>
+
+<h3>Charger un mod depuis sa source</h3>
+<pre>CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 claude --plugin-dir mods/diff --debug</pre>
+<p>Le dossier est surveillé : enregistrer un fichier recharge le module. Les mods officiels se lisent de la même façon (<code>claude --plugin-dir mods/diff</code>) — sauf <code>telemetry</code> et <code>sec-default</code>, qui ne servent à rien hors du siège que le CLI leur réserve (voir <a href="#officiels">§15</a>).</p>
+
+<div class="callout">
+  <strong>Où vont les options d'un plugin</strong>
+  <p>Les options (<code>userConfig</code>) se règlent dans <code>/config</code>, ou à la main sous <code>pluginConfigs</code> dans <code>~/.claude/settings.json</code>, <code>--settings</code> ou les settings managés. Le <code>.claude/settings.json</code> d'un projet <strong>n'est pas lu</strong> pour les options de plugin.</p>
+</div>
+</section>
+
+<!-- ============================================================ 3 -->
+<section id="anatomie">
+<h2><span class="n">3</span>Anatomie d'un mod</h2>
+<p>Chaque dossier est un plugin complet. La disposition des mods officiels, reprise par ceux de ce dépôt :</p>
+<pre>mon-mod/
+├── .claude-plugin/plugin.json   <span class="c">le manifeste ; "types" si le mod ajoute un noun à $</span>
+├── hooks/
+│   ├── hooks.json               <span class="c">nomme le module que le moteur charge</span>
+│   ├── register.ts              <span class="c">le seul fichier qui touche aux événements</span>
+│   ├── index.ts                 <span class="c">le barrel</span>
+│   └── &lt;sujet&gt;/                 <span class="c">un dossier par sujet, logique pure, testable</span>
+├── types/index.d.ts             <span class="c">le contrat du noun, sans aucun import</span>
+├── tests/register.test.ts       <span class="c">nommé d'après ce qu'il couvre sous hooks/</span>
+└── README.md</pre>
+
+<div class="grid2">
+<div>
+<p class="file">.claude-plugin/plugin.json</p>
+<pre>{
+  <span class="k">"name"</span>: <span class="s">"agents-md"</span>,
+  <span class="k">"version"</span>: <span class="s">"0.1.0"</span>,
+  <span class="k">"description"</span>: <span class="s">"AGENTS.md as project…"</span>,
+  <span class="k">"author"</span>: { <span class="k">"name"</span>: <span class="s">"Anthropic"</span> },
+  <span class="k">"userConfig"</span>: {
+    <span class="k">"instructionFiles"</span>: {
+      <span class="k">"type"</span>: <span class="s">"string"</span>,
+      <span class="k">"title"</span>: <span class="s">"Project instructions"</span>,
+      <span class="k">"default"</span>: <span class="s">"claude-md-or-agents-md"</span>,
+      <span class="k">"options"</span>: [<span class="s">"claude-md"</span>, <span class="s">"…"</span>]
+    }
+  }
+}</pre>
+</div>
+<div>
+<p class="file">hooks/hooks.json</p>
+<pre>{
+  <span class="k">"description"</span>: <span class="s">"Security default: …"</span>,
+  <span class="k">"modules"</span>: [<span class="s">"./register.ts"</span>]
+}</pre>
+<p class="file">hooks/register.ts</p>
+<pre><span class="k">import type</span> { On } <span class="k">from</span> <span class="s">'claude-code'</span>
+
+<span class="k">export function</span> register(on: On) {
+  on(<span class="s">'tool.call'</span>, { tool: <span class="s">'Bash'</span> },
+    ($, e, next) =&gt;
+      /rm -rf \//.test(e.command)
+        ? { deny: <span class="s">'pas ça'</span> }
+        : next(e))
+}</pre>
+</div>
+</div>
+<p>Le type <code>Register</code> est <code>(on: On, options: PluginOptions) =&gt; unknown</code> ; <code>options</code> porte les champs <code>userConfig</code> du manifeste, valeurs par défaut remplies. Les types s'importent de <code>'claude-code'</code> (et <code>'claude-code/testing'</code> pour les tests) : ce sont les déclarations que la commande <code>/plugin-types</code> écrit depuis le binaire installé.</p>
+</section>
+
+<!-- ============================================================ 4 -->
+<section id="chaine">
+<h2><span class="n">4</span>La chaîne <code>($, e, next)</code></h2>
+<p>Pour un même événement, tous les hooks de tous les plugins chargés forment une <strong>chaîne</strong>. Le premier appelé est le plus extérieur ; chaque <code>next(e)</code> descend d'un cran ; le <em>core</em> — l'implémentation du moteur — est le dernier maillon. Le résultat remonte dans l'ordre inverse.</p>
+
+<figure class="diagram">
+<svg viewBox="0 0 820 330" role="img" aria-labelledby="tiersT tiersD" font-family="Inter,system-ui,sans-serif">
+  <title id="tiersT">Les cinq tiers de la chaîne</title>
+  <desc id="tiersD">Un appel descend de prepend à user, append, builtin puis core via next(e) ; le résultat remonte.</desc>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ink-3)"/></marker>
+  </defs>
+  <g font-size="13">
+    <rect x="20" y="20" width="520" height="50" rx="9" fill="var(--surface-2)" stroke="var(--t1)" stroke-width="2"/>
+    <text x="36" y="42" font-weight="700" fill="var(--t1)">prepend</text>
+    <text x="36" y="60" fill="var(--ink-2)">plugins managés listés par l'organisation (prependPlugins) · sec-default</text>
+    <rect x="20" y="82" width="520" height="50" rx="9" fill="var(--surface-2)" stroke="var(--t2)" stroke-width="2"/>
+    <text x="36" y="104" font-weight="700" fill="var(--t2)">user</text>
+    <text x="36" y="122" fill="var(--ink-2)">tout ce qu'une personne installe (marketplace, --plugin-dir)</text>
+    <rect x="20" y="144" width="520" height="50" rx="9" fill="var(--surface-2)" stroke="var(--t3)" stroke-width="2"/>
+    <text x="36" y="166" font-weight="700" fill="var(--t3)">append</text>
+    <text x="36" y="184" fill="var(--ink-2)">plugins managés placés sous l'utilisateur</text>
+    <rect x="20" y="206" width="520" height="50" rx="9" fill="var(--surface-2)" stroke="var(--t4)" stroke-width="2"/>
+    <text x="36" y="228" font-weight="700" fill="var(--t4)">builtin</text>
+    <text x="36" y="246" fill="var(--ink-2)">mods livrés dans le binaire : diff, telemetry, agents-md</text>
+    <rect x="20" y="268" width="520" height="50" rx="9" fill="var(--surface)" stroke="var(--t5)" stroke-width="2" stroke-dasharray="5 4"/>
+    <text x="36" y="290" font-weight="700" fill="var(--t5)">core</text>
+    <text x="36" y="308" fill="var(--ink-2)">l'implémentation du moteur : le dernier maillon</text>
+  </g>
+  <g stroke="var(--ink-3)" stroke-width="1.6" fill="none">
+    <path d="M580 30 V300" marker-end="url(#ar)"/>
+    <path d="M680 300 V30" marker-end="url(#ar)"/>
+  </g>
+  <g font-size="12.5" fill="var(--ink-2)">
+    <text x="590" y="160" font-family="JetBrains Mono,monospace" fill="var(--accent-ink)">next(e)</text>
+    <text x="590" y="178">descend</text>
+    <text x="690" y="160" font-family="JetBrains Mono,monospace" fill="var(--accent-ink)">résultat</text>
+    <text x="690" y="178">remonte</text>
+    <text x="560" y="325" font-size="11.5" fill="var(--ink-3)">plus haut = plus d'autorité</text>
+  </g>
+</svg>
+<figcaption>Les cinq tiers (<code>TIERS = ["prepend", "user", "append", "builtin", "core"]</code>), du plus extérieur au plus intérieur. Les hooks d'un même événement s'emboîtent dans cet ordre et aucun autre.</figcaption>
+</figure>
+
+<p>C'est un modèle en <strong>oignon</strong> : pas de priorité numérique, l'ordre des tiers est fixe. Le premier maillon « possède » l'événement et rien en dessous ne peut l'en empêcher — l'organisation préfixe pour contrôler, suffixe pour poser des défauts. Au sein du tier <code>user</code>, l'ordre fusionne celui de la personne avec un tri topologique des dépendances : un plugin qui dépend d'un autre s'enregistre avant lui (commentaires de l'auteur, issue #91870).</p>
+
+<figure>
+<a href="img/function-hooks-cheat-sheet.svg"><img src="img/function-hooks-cheat-sheet.svg" alt="Cheat sheet officielle Claude Mods : le hook, next, les cinq tiers, les nouns et verbes de $, les événements du moteur, le dessin ui.render et les règles de conduite" loading="lazy" width="2400" height="1600"></a>
+<figcaption>La cheat sheet officielle « Claude Mods — the $ cheat sheet » (Anthropic, 9 septembre 2026, publiée dans l'issue #91870 ; écrite pour v267/v268 — certains verbes, comme <code>$.ui.ask</code>, n'apparaissent pas dans les déclarations 2.1.280). Cliquer pour l'ouvrir en grand.</figcaption>
+</figure>
+
+<h3>Ce que <code>next</code> sait faire</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Membre</th><th>Rôle</th></tr></thead>
+<tbody>
+<tr><td><code>next(e)</code></td><td>Exécute les hooks en dessous puis le cœur, et résout avec le résultat. L'appeler sans argument rejette. L'appeler deux fois exécute l'effet deux fois.</td></tr>
+<tr><td><code>next({ ...e, champ })</code></td><td>Réécriture : la suite voit l'entrée modifiée. Les champs <strong>épinglés</strong> (identités : <code>tool</code>, <code>tool_use_id</code>, <code>agentId</code>, <code>origin</code>, <code>provider</code>, <code>key</code>, <code>id</code>…) refusent toute réécriture.</td></tr>
+<tr><td><code>next.to(e, tier)</code></td><td>Continue la dispatch à partir d'un tier plus bas (<code>append</code>, <code>builtin</code>, <code>core</code>) en sautant les autres. Réservé aux plugins d'un tier managé : c'est l'arme de <code>sec-default</code>.</td></tr>
+<tr><td><code>next.origin</code></td><td><code>{ plugin, tier }</code> : qui a fait l'appel sur <code>$</code> (<code>"engine"</code> pour le moteur). Permet de refuser un appelant par son tier.</td></tr>
+<tr><td><code>next.trace</code></td><td>Les entrées de trace de la dispatch, tier par tier.</td></tr>
+<tr><td><code>next.budget</code></td><td><code>{ ms, remainingMs }</code> : le budget en millisecondes et ce qu'il en reste. Le chronomètre s'arrête pendant un <code>next</code> ou un appel sur <code>$</code>.</td></tr>
+<tr><td><code>next.signal</code></td><td>Un <code>AbortSignal</code> pour la dispatch en cours.</td></tr>
+<tr><td><code>next.called</code></td><td>Vrai quand <code>next</code> a déjà été appelé — à vérifier dans un <code>.catch</code> pour ne pas rejouer un effet.</td></tr>
+<tr><td><code>next.event</code> / <code>next.is(pattern, e)</code></td><td>Dans un hook sur un glob (<code>'ui.*'</code>) : quel événement tourne, et un garde de type qui rétrécit <code>e</code>.</td></tr>
+</tbody></table></div>
+
+<h3>Motifs et matchers</h3>
+<pre><span class="c">// un événement</span>
+on(<span class="s">'prompt.submit'</span>, hook)
+<span class="c">// tous les événements, ou tout un espace de noms</span>
+on(<span class="s">'*'</span>, hook);  on(<span class="s">'classic.*'</span>, hook)
+<span class="c">// une négation : tout sauf…</span>
+on(<span class="s">'!ui.*'</span>, hook)
+<span class="c">// avec matcher : le hook ne tourne que si e correspond</span>
+on(<span class="s">'tool.call'</span>, { tool: <span class="s">'Bash'</span>, command: <span class="s">/^git push/</span> }, hook)
+on(<span class="s">'ui.render'</span>, { component: <span class="s">'Pane'</span> }, hook)
+on(<span class="s">'session.receive'</span>, { origin: { teammate: <span class="s">'researcher'</span> } }, hook)</pre>
+<p>Un matcher connaît quatre sortes de valeurs : un scalaire compare avec <code>===</code> ; une <code>RegExp</code> teste la valeur comme chaîne ; un tableau correspond si l'un de ses éléments correspond ; un objet est un partiel d'objet. Le matcher <strong>rétrécit aussi le type</strong> de <code>e</code> : sous <code>{ tool: 'Bash' }</code>, <code>e.command</code> est typé.</p>
+
+<h3>Les formes de réponse</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Événement</th><th>Répondre sans <code>next</code></th><th>Refuser</th></tr></thead>
+<tbody>
+<tr><td><code>tool.call</code></td><td><code>{ result }</code> (+ <code>context?</code>) — validé contre le schéma de sortie de l'outil</td><td><code>{ deny: "…" }</code> — le modèle reçoit le texte comme erreur</td></tr>
+<tr><td><code>tool.check</code></td><td><code>{ decision: "allow" | "deny" | "ask", reason?, rule? }</code></td><td>—</td></tr>
+<tr><td><code>command.run</code></td><td><code>{ text }</code> — la sortie de la commande</td><td><code>{ deny }</code></td></tr>
+<tr><td><code>prompt.section</code> / <code>prompt.attachment</code></td><td><code>{ text }</code>, ou <code>{ text: null }</code> pour retirer</td><td>—</td></tr>
+<tr><td><code>prompt.context</code></td><td><code>{ blocks }</code></td><td>—</td></tr>
+<tr><td>appels sur <code>$</code> (<code>fs.read</code>, <code>http.fetch</code>…)</td><td><code>{ value }</code> — le hook tient lieu d'implémentation</td><td><code>{ deny }</code></td></tr>
+<tr><td>événements d'observation (<code>turn.start</code>, <code>session.detach</code>…)</td><td colspan="2">Seul <code>next(e)</code> compte : un autre retour ne change rien.</td></tr>
+</tbody></table></div>
+
+<h3>Événements en flux</h3>
+<p>Deux événements <em>streament</em> : <code>turn.step</code> (la réponse du modèle arrive par morceaux) et <code>process.spawn</code> (la sortie d'un processus enfant). Leur hook est un <strong>générateur asynchrone</strong> :</p>
+<pre><span class="c">// passer :       return yield* next(e)</span>
+<span class="c">// transformer :  for await (const c of next(e)) yield f(c)</span>
+on(<span class="s">'turn.step'</span>, <span class="k">async function*</span> ($, e, next) {
+  <span class="k">const</span> r = <span class="k">yield*</span> next(e)          <span class="c">// relaie chaque morceau</span>
+  <span class="k">return</span> { ...r }                   <span class="c">// la réponse entière</span>
+})</pre>
+</section>
+
+<!-- ============================================================ 5 -->
+<section id="regles">
+<h2><span class="n">5</span>Les règles du chargeur</h2>
+<p>Le chargeur <strong>lit la source statiquement</strong> avant d'exécuter quoi que ce soit : il inventorie les événements hookés et les appels sur <code>$</code>, et refuse ce qu'il ne voit pas. Ces règles font échouer un mod <em>sans erreur visible</em> si on les oublie.</p>
+
+<div class="callout bad">
+  <strong>1. Orthographe littérale</strong>
+  <p><code>$</code> s'écrit toujours <code>$.noun.verbe(…)</code> en toutes lettres, et <code>on("événement")</code> aussi. Interdits : <code>const { store } = $</code>, <code>$[noun][verb]()</code>, un nom d'événement calculé, une table de dispatch, <code>$.env.get(nomVariable)</code>. <code>$</code> ne peut même pas être <em>lié à un nom</em> — ni assigné, ni passé en argument, ni retourné :</p>
+  <pre>$ itself is bound to a name (bound, passed, spread, returned or read);
+$ is always spelled $.noun.event(...) at the call site</pre>
+  <p>Conséquence : on ne demande pas si un noun existe ; on écrit l'appel et on l'entoure d'un <code>try/catch</code>. <strong>Appeler</strong> un noun que personne ne fournit laisse le module se charger ; <strong>hooker</strong> son verbe (<code>on("telemetry.log", …)</code>) fait échouer la construction de <code>$</code>.</p>
+</div>
+
+<div class="callout warn">
+  <strong>2. Un seul hook sans matcher par événement et par module</strong>
+  <p>Un second <code>on("tool.call", …)</code> sans matcher est refusé au chargement, en nommant la ligne du premier. Deux préoccupations sur le même événement partagent un hook, ou l'une prend un matcher.</p>
+</div>
+
+<div class="callout">
+  <strong>3. Budget et échec</strong>
+  <p><strong>10 s</strong> par hook et par dispatch (<code>HookBudget.ms = 10_000</code>) ; <code>engine.create</code> n'a pas de budget. Un <code>throw</code> ou un dépassement <strong>saute le hook</strong> : la chaîne continue sans lui, ou son dernier résultat de <code>next</code> tient. <code>on(…).catch(handler)</code> installe un gestionnaire qui dispose d'une grâce de <strong>1 s</strong> (<code>catchMs</code>) — à n'ajouter que s'il fait mieux, et jamais un qui rappelle <code>next(e)</code> quand <code>next.called</code> est vrai.</p>
+</div>
+
+<div class="callout">
+  <strong>4. Récursion</strong>
+  <p>Un hook ne voit jamais les dispatches qu'il a lui-même déclenchées ; ses hooks frères et tous les autres plugins, si. Un <code>$.fs.write</code> fait dans un hook est une dispatch que les plugins au-dessus observent.</p>
+</div>
+
+<div class="callout ok">
+  <strong>5. Effets de bord du cœur</strong>
+  <p>Pas de <code>next</code> = ça n'a pas eu lieu. Deux <code>next</code> = ça a eu lieu deux fois.</p>
+</div>
+
+<h3>L'environnement d'exécution</h3>
+<ul>
+  <li><strong>Pas de DOM, pas de Node, pas de <code>require</code>.</strong> Tout passe par <code>$</code> — les fichiers, le réseau, les processus, l'horloge.</li>
+  <li><strong>Seules des données simples traversent</strong> vers l'environnement du plugin : un fichier binaire se lit en base64 (<code>$.fs.read(p, { as: "bytes" })</code>).</li>
+  <li><strong>Un timer survit à sa dispatch, pas <code>$</code>.</strong> Ce qui doit tourner après la fin d'un hook capture ses appels depuis <code>engine.create</code> : le <code>$</code> que <code>next(e)</code> y rend (<code>beneath</code>) peut, lui, être lié à un nom.</li>
+  <li><strong>Travail long :</strong> aucune indexation synchrone dans un hook ; démarrer à <code>session.start</code> et continuer par <code>$.clock.every</code>.</li>
+</ul>
+</section>
+
+<!-- ============================================================ 6 -->
+<section id="cycle">
+<h2><span class="n">6</span>Cycle de vie d'une session</h2>
+<p>L'ordre dans lequel les événements principaux se succèdent, du chargement du module à la fin de la session :</p>
+<figure class="diagram">
+<svg viewBox="0 0 820 300" role="img" aria-labelledby="cyT cyD" font-family="Inter,system-ui,sans-serif">
+  <title id="cyT">Cycle de vie</title>
+  <desc id="cyD">Chargement : engine.create, plugin.register, session.start. Puis pour chaque prompt : prompt.submit, turn.start, puis une boucle turn.step et tool.call/tool.check, puis turn.complete. Enfin session.end.</desc>
+  <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink-3)"/></marker></defs>
+  <g font-size="12" font-family="JetBrains Mono,monospace">
+    <text x="20" y="24" font-family="Inter" font-weight="700" font-size="12" fill="var(--ink-3)">CHARGEMENT</text>
+    <rect x="20" y="34" width="150" height="34" rx="7" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="95" y="56" text-anchor="middle" fill="var(--ink)">engine.create</text>
+    <rect x="200" y="34" width="150" height="34" rx="7" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="275" y="56" text-anchor="middle" fill="var(--ink)">plugin.register</text>
+    <rect x="380" y="34" width="150" height="34" rx="7" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="455" y="56" text-anchor="middle" fill="var(--ink)">session.start</text>
+    <text x="20" y="110" font-family="Inter" font-weight="700" font-size="12" fill="var(--ink-3)">À CHAQUE PROMPT</text>
+    <rect x="20" y="120" width="150" height="34" rx="7" fill="var(--info-soft)" stroke="var(--info)"/><text x="95" y="142" text-anchor="middle" fill="var(--ink)">prompt.submit</text>
+    <rect x="200" y="120" width="150" height="34" rx="7" fill="var(--info-soft)" stroke="var(--info)"/><text x="275" y="142" text-anchor="middle" fill="var(--ink)">turn.start</text>
+    <rect x="380" y="120" width="150" height="34" rx="7" fill="var(--info-soft)" stroke="var(--info)"/><text x="455" y="142" text-anchor="middle" fill="var(--ink)">turn.step ⇶</text>
+    <rect x="380" y="190" width="150" height="34" rx="7" fill="var(--info-soft)" stroke="var(--info)"/><text x="455" y="212" text-anchor="middle" fill="var(--ink)">tool.call</text>
+    <rect x="560" y="190" width="150" height="34" rx="7" fill="var(--info-soft)" stroke="var(--info)"/><text x="635" y="212" text-anchor="middle" fill="var(--ink)">tool.check</text>
+    <rect x="560" y="120" width="150" height="34" rx="7" fill="var(--info-soft)" stroke="var(--info)"/><text x="635" y="142" text-anchor="middle" fill="var(--ink)">turn.complete</text>
+    <rect x="560" y="250" width="150" height="34" rx="7" fill="var(--surface-2)" stroke="var(--ink-3)"/><text x="635" y="272" text-anchor="middle" fill="var(--ink)">session.end</text>
+  </g>
+  <g stroke="var(--ink-3)" stroke-width="1.5" fill="none">
+    <path d="M170 51H198" marker-end="url(#ar2)"/><path d="M350 51H378" marker-end="url(#ar2)"/>
+    <path d="M455 68 C455 95 95 90 95 118" marker-end="url(#ar2)"/>
+    <path d="M170 137H198" marker-end="url(#ar2)"/><path d="M350 137H378" marker-end="url(#ar2)"/>
+    <path d="M440 154V188" marker-end="url(#ar2)"/><path d="M470 188V156" marker-end="url(#ar2)"/>
+    <path d="M530 207H558" marker-end="url(#ar2)"/>
+    <path d="M530 137H558" marker-end="url(#ar2)"/>
+    <path d="M635 154V248" stroke-dasharray="4 4" marker-end="url(#ar2)"/>
+  </g>
+  <g font-size="11.5" fill="var(--ink-3)">
+    <text x="478" y="178">tool_use ⇄ résultat</text>
+    <text x="645" y="236">à la sortie</text>
+    <text x="20" y="200">En parallèle, à la demande :</text>
+    <text x="20" y="218" font-family="JetBrains Mono,monospace">prompt.section · prompt.context</text>
+    <text x="20" y="236" font-family="JetBrains Mono,monospace">prompt.attachment · tool.describe</text>
+    <text x="20" y="254" font-family="JetBrains Mono,monospace">ui.render · session.compact</text>
+    <text x="20" y="272" font-family="JetBrains Mono,monospace">session.measure · agent.spawn</text>
+  </g>
+</svg>
+<figcaption><code>engine.create</code> tourne à chaque chargement ou rechargement du plugin, avant tout autre hook ; <code>session.start</code> une fois par processus pour chaque plugin chargé (jamais sur <code>/clear</code>), puis à chaque rechargement frais.</figcaption>
+</figure>
+</section>
+
+<!-- ============================================================ 7 -->
+<section id="evenements">
+<h2><span class="n">7</span>Catalogue des événements</h2>
+<p>Les événements <em>du moteur</em> (<code>EngineEventOf</code>) : ceux que le moteur déclenche lui-même. S'y ajoutent les appels sur <code>$</code>, eux aussi hookables (<a href="#nouns">§8</a>), et les hooks classiques (<a href="#classic">§11</a>).</p>
+
+<h3>Outils et permissions</h3>
+<div class="table-wrap"><table><thead><tr><th>Événement</th><th>Quand</th><th>Ce qu'on en fait</th></tr></thead><tbody>
+<tr><td><code>tool.call</code></td><td>Le moteur va exécuter un outil. <code>next(e)</code> = hooks en dessous, puis le cœur (demande de permission, outil).</td><td>Garde-fous, réécriture d'arguments, réponse à la place de l'outil, compression d'un résultat avant qu'il n'entre dans le transcript.</td></tr>
+<tr><td><code>tool.check</code></td><td>Le moteur décide si l'appel peut tourner, après <code>tool.call</code> et PreToolUse, avant que le mode ne tranche un <em>ask</em>.</td><td><code>{ decision: "allow" }</code> sur des lectures sûres ; politique de permission sur mesure.</td></tr>
+<tr><td><code>tool.describe</code></td><td>Une fois par outil, au premier rendu de son schéma.</td><td>Réécrire la description d'un outil, le rendre <em>deferred</em> ou non (<code>isDeferred</code>).</td></tr>
+</tbody></table></div>
+
+<h3>Prompt et contexte</h3>
+<div class="table-wrap"><table><thead><tr><th>Événement</th><th>Quand</th><th>Ce qu'on en fait</th></tr></thead><tbody>
+<tr><td><code>prompt.submit</code></td><td>Un prompt est soumis, avant le tour (inclut les hooks UserPromptSubmit).</td><td>Réécrire le texte ; attacher du <code>context</code> invisible pour l'utilisateur.</td></tr>
+<tr><td><code>prompt.section</code></td><td>Une fois par section nommée du system prompt.</td><td>Réécrire ou retirer une section (<code>{ text: null }</code>). <strong>Impossible d'en ajouter une.</strong></td></tr>
+<tr><td><code>prompt.context</code></td><td>Une fois par conversation : les blocs du premier message utilisateur (<code>claudeMd</code>, <code>userEmail</code>, <code>currentDate</code>…).</td><td>Ajouter son propre bloc (<code>PromptContextBlock</code>, nommé d'après le plugin) ; modifier les fichiers d'instructions (c'est ainsi que <code>agents-md</code> charge <code>AGENTS.md</code>).</td></tr>
+<tr><td><code>prompt.attachment</code></td><td>Chaque message que le moteur injecte de lui-même (rappel, transition de mode, fichier mentionné).</td><td>Retirer un rappel (<code>{ type: "todo_reminder" }</code>), le raccourcir.</td></tr>
+<tr><td><code>prompt.fill</code> · <code>prompt.suggest</code> · <code>prompt.edit</code></td><td>Texte posé dans la boîte de saisie, suggestion grisée (Tab pour prendre), édition de la boîte.</td><td>Normaliser un brouillon, masquer les suggestions, transformer la frappe.</td></tr>
+<tr><td><code>skill.prompt</code></td><td>Le moteur développe le prompt d'un skill.</td><td>Remplacer ou enrichir un skill.</td></tr>
+<tr><td><code>attribution.text</code></td><td>Composition d'un texte git que le modèle doit écrire (<code>commit</code>, <code>pr</code>…).</td><td>Vider l'attribution (<code>{ text: "" }</code>).</td></tr>
+</tbody></table></div>
+<figure class="narrow">
+<img class="on-white" src="img/claude-code-context-loading.svg" alt="Diagramme de la documentation Claude Code : ce qui est chargé dans le contexte" loading="lazy">
+<figcaption>Ce que Claude Code charge dans le contexte (documentation officielle, <em>features overview</em>). <code>prompt.section</code>, <code>prompt.context</code> et <code>prompt.attachment</code> sont les points où un mod intervient sur chacune de ces couches.</figcaption>
+</figure>
+
+<h3>Tours et modèle</h3>
+<div class="table-wrap"><table><thead><tr><th>Événement</th><th>Quand</th><th>Ce qu'on en fait</th></tr></thead><tbody>
+<tr><td><code>turn.start</code></td><td>Un tour commence, avant son premier appel modèle. Observation.</td><td>Retenir le <code>turnId</code> (pour <code>$.turn.abort</code>).</td></tr>
+<tr><td><code>turn.step</code> <span class="pill">flux</span></td><td>Le moteur va envoyer une requête modèle (principale ou sous-agent, <code>e.agentId</code>).</td><td>Mesurer l'usage et le cache par requête ; transformer la réponse en flux.</td></tr>
+<tr><td><code>turn.complete</code></td><td>Un tour se termine ; <code>next(e)</code> rend <code>{ text }</code>, la réponse. <code>e.reason</code> dit pourquoi.</td><td>Toast de durée, récupérer la réponse d'un sous-agent.</td></tr>
+</tbody></table></div>
+
+<h3>Session</h3>
+<div class="table-wrap"><table><thead><tr><th>Événement</th><th>Quand</th><th>Ce qu'on en fait</th></tr></thead><tbody>
+<tr><td><code>session.start</code></td><td>Une fois par processus et par plugin, avant le premier prompt.</td><td>Enregistrer commandes, outils, agents ; lancer le travail de fond.</td></tr>
+<tr><td><code>session.receive</code></td><td>Une livraison arrive (relais, message d'un pair, prompt Remote Control), avant d'être mise en file.</td><td>Filtrer, mettre en sourdine (<code>{ consumed: "muted" }</code>).</td></tr>
+<tr><td><code>session.send</code></td><td>Un message va partir vers un autre agent ou session.</td><td>Caviarder des secrets.</td></tr>
+<tr><td><code>session.compact</code></td><td>La conversation va être compactée ; <code>next(e)</code> rend <code>{ messages }</code>.</td><td>Sauter une pré-compaction, préparer ce qui doit survivre.</td></tr>
+<tr><td><code>session.measure</code></td><td>Après chaque tour principal, et quand une fenêtre de rate-limit bouge.</td><td>Alerter à 90 % du quota.</td></tr>
+<tr><td><code>session.attach</code> · <code>session.detach</code></td><td>Un client distant rejoint / quitte les surfaces attachées.</td><td>Adapter le rendu au mobile.</td></tr>
+<tr><td><code>session.end</code></td><td>Une fois, à la fin (exit, /clear, resume, logout, signal, fin de <code>-p</code>). Budget global court.</td><td>Vider une file, sauver l'état (lire <code>next.budget</code>).</td></tr>
+<tr><td><code>plugin.register</code></td><td>Chaque module sur le point de rejoindre la chaîne.</td><td>Politique d'organisation : <code>{ refuse: "managed only" }</code> pour le tier user.</td></tr>
+<tr><td><code>engine.create</code></td><td>Pendant la construction de <code>$</code>, avant tout autre hook du plugin.</td><td>Ajouter un noun à <code>$</code> (<a href="#etendre">§10</a>).</td></tr>
+</tbody></table></div>
+
+<h3>Commandes, configuration, agents</h3>
+<div class="table-wrap"><table><thead><tr><th>Événement</th><th>Quand</th><th>Ce qu'on en fait</th></tr></thead><tbody>
+<tr><td><code>command.run</code></td><td>Une commande slash va tourner (tapée, ou <code>$.command.run</code>).</td><td>Implémenter sa commande : <code>on("command.run", { command: "hello" }, () =&gt; ({ text: "hello" }))</code>.</td></tr>
+<tr><td><code>command.describe</code></td><td>Listage pour la typeahead et <code>/help</code>.</td><td>Masquer une commande (<code>isHidden: true</code>).</td></tr>
+<tr><td><code>config.set</code> · <code>config.describe</code></td><td>Une ligne de <code>/config</code> va changer / est listée.</td><td>Valider, refuser, masquer une option.</td></tr>
+<tr><td><code>agent.offer</code></td><td>Un type d'agent est proposé au modèle.</td><td>Cacher un agent : <code>{ isOffered: false }</code>.</td></tr>
+<tr><td><code>agent.spawn</code></td><td>L'outil Agent va démarrer un sous-agent.</td><td>Changer son modèle, son prompt ; tracer les forks.</td></tr>
+</tbody></table></div>
+
+<h3>Interface</h3>
+<div class="table-wrap"><table><thead><tr><th>Événement</th><th>Quand</th></tr></thead><tbody>
+<tr><td><code>ui.render</code></td><td>Le moteur va dessiner un composant (une fois par valeur d'entrée, chargement ou <code>$.ui.invalidate</code>).</td></tr>
+<tr><td><code>ui.resolve</code></td><td>Au chargement, par surface, composant et plugin : la table d'éléments.</td></tr>
+<tr><td><code>ui.press</code> · <code>ui.input</code> · <code>ui.select</code></td><td>Un <code>Button</code> pressé, un <code>Input</code> modifié, un <code>Select</code> choisi — dessinés par un hook de rendu.</td></tr>
+<tr><td><code>ui.scroll</code> · <code>ui.focus</code></td><td>La fenêtre d'un site va défiler ; l'anneau de focus va bouger.</td></tr>
+<tr><td><code>ui.message</code></td><td>Un <code>Client</code> dessiné par CE plugin poste depuis son module de surface.</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ============================================================ 8 -->
+<section id="nouns">
+<h2><span class="n">8</span>Les nouns de <code>$</code></h2>
+<p>Chaque appel sur <code>$</code> est lui-même une <strong>dispatch hookable</strong> : un plugin au-dessus de l'appelant peut le laisser passer, le réécrire, le refuser (<code>{ deny }</code>) ou y répondre (<code>{ value }</code>) ; <code>next.origin</code> nomme l'appelant. Un mod qui fait <code>$.fs.write</code> est donc visible — et gouvernable — par ceux qui sont au-dessus.</p>
+
+<div class="table-wrap"><table><thead><tr><th>Noun</th><th>Verbes</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>$.plugin</code></td><td><code>name</code>, <code>root</code></td><td>Propriétés : le plugin tel que chargé.</td></tr>
+<tr><td><code>$.fs</code></td><td><code>read</code>, <code>write</code>, <code>list</code>, <code>exists</code>, <code>stat</code>, <code>ancestors</code></td><td><strong>Pas de <code>delete</code></strong> : on réécrit vide. <code>stat(p, { resolve: true })</code> donne <code>realPath</code> ; <code>ancestors</code> marche de la racine au cwd comme le chargeur de CLAUDE.md.</td></tr>
+<tr><td><code>$.store</code></td><td><code>get</code>, <code>set</code>, <code>delete</code>, <code>keys</code></td><td>Stockage clé/valeur du plugin, <strong>4 MiB de JSON au total</strong>.</td></tr>
+<tr><td><code>$.process</code></td><td><code>run</code>, <code>spawn</code> <span class="pill">flux</span></td><td>Un <strong>argv, sans shell</strong> : pas de pipe, pas de glob ; 30 s par défaut, 10 min au plus.</td></tr>
+<tr><td><code>$.http</code></td><td><code>fetch</code></td><td>Requête HTTP depuis le processus du moteur.</td></tr>
+<tr><td><code>$.clock</code></td><td><code>now</code>, <code>sleep</code>, <code>after</code>, <code>every</code></td><td>Le seul moyen d'avoir des timers ; <code>fn</code> reste dans l'environnement du plugin.</td></tr>
+<tr><td><code>$.env</code></td><td><code>get</code>, <code>set</code></td><td>Par nom littéral uniquement.</td></tr>
+<tr><td><code>$.settings</code></td><td><code>read</code></td><td>Lecture seule ; <code>{ source: "policy" }</code> pour les settings managés.</td></tr>
+<tr><td><code>$.model</code></td><td><code>complete</code>, <code>classify</code>, <code>fork</code></td><td>Appeler un modèle (<code>haiku</code> ou un id complet). Le coût des mods doit s'afficher à côté de leurs économies.</td></tr>
+<tr><td><code>$.mcp</code></td><td><code>call</code></td><td>Appeler l'outil d'un serveur MCP.</td></tr>
+<tr><td><code>$.tool</code></td><td><code>call</code>, <code>check</code>, <code>describe</code>, <code>list</code>, <code>register</code></td><td><code>register(spec)</code> ajoute un outil appelé <code>mcp__&lt;plugin&gt;__&lt;nom&gt;</code> ; on y répond sur <code>tool.call</code>.</td></tr>
+<tr><td><code>$.command</code></td><td><code>run</code>, <code>describe</code>, <code>list</code>, <code>register</code></td><td><code>register({ name, description, argumentHint?, immediate? })</code>.</td></tr>
+<tr><td><code>$.agent</code></td><td><code>offer</code>, <code>spawn</code>, <code>list</code>, <code>register</code></td><td>Déclarer un type d'agent, en démarrer un.</td></tr>
+<tr><td><code>$.config</code></td><td><code>set</code>, <code>describe</code>, <code>list</code></td><td><strong><code>$.config.set</code> recharge le module</strong> : l'état en mémoire est perdu.</td></tr>
+<tr><td><code>$.prompt</code></td><td><code>submit</code>, <code>fill</code>, <code>suggest</code>, <code>read</code>, <code>section</code>, <code>context</code>, <code>attachment</code></td><td>Soumettre un prompt au nom de l'utilisateur, remplir la boîte.</td></tr>
+<tr><td><code>$.session</code></td><td><code>id</code>, <code>cwd</code>, <code>root</code>, <code>repo</code>, <code>model</code>, <code>turns</code>, <code>messages</code>, <code>usage</code>, <code>surface(s)</code>, <code>authorize</code>, <code>send</code>, <code>compact</code>, <code>measure</code>…</td><td><code>messages({ agentId })</code> lit le transcript d'un sous-agent ; <code>usage()</code> coûts et tokens.</td></tr>
+<tr><td><code>$.turn</code></td><td><code>abort</code></td><td>Interrompre un tour par <code>turnId</code>.</td></tr>
+<tr><td><code>$.ui</code></td><td><code>log</code>, <code>toast</code>, <code>status</code>, <code>notice</code>, <code>open</code>, <code>close</code>, <code>panes</code>, <code>invalidate</code>, <code>resolve</code>, <code>blit</code>, <code>copy</code>, <code>scroll</code>, <code>focus</code></td><td>Voir <a href="#ui">§9</a>. <code>log(text, { to: "debug" })</code> écrit au journal de debug seulement.</td></tr>
+<tr><td><code>$.audio</code></td><td><code>play</code>, <code>speak</code></td><td>Jouer un clip, synthèse vocale.</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ============================================================ 9 -->
+<section id="ui">
+<h2><span class="n">9</span>Dessiner : l'UI</h2>
+<p>Un hook sur <code>ui.render</code> dessine en JSX avec les éléments de la surface. Il peut <strong>envelopper</strong> le rendu du cœur (<code>&lt;Box&gt;{await next(e)}…&lt;/Box&gt;</code>) ou le <strong>remplacer</strong>.</p>
+<h3>Composants que l'on peut redessiner</h3>
+<p><code>AskUserQuestion</code>, <code>UserMessage</code>, <code>AssistantMessage</code>, <code>ToolUse</code>, <code>ToolResult</code>, <code>ToolGroup</code>, <code>ToolProgress</code>, <code>CommandOutput</code>, <code>Spinner</code>, <code>TurnDuration</code>, <code>InfoNotice</code>, <code>SessionMode</code>, <code>PromptHint</code>, <code>AbovePrompt</code> (la bande au-dessus du prompt) et <code>Pane</code> (un panneau à côté du transcript).</p>
+
+<h3>Éléments par surface</h3>
+<div class="table-wrap"><table><thead><tr><th>Surface</th><th>Éléments</th></tr></thead><tbody>
+<tr><td><code>terminal</code></td><td><code>Box</code>, <code>Text</code>, <code>Button</code>, <code>Input</code>, <code>Select</code>, <code>Link</code>, <code>Code</code>, <code>Markdown</code>, <code>Client</code>, <code>Raster</code>, <code>Image</code></td></tr>
+<tr><td><code>desktop</code></td><td><code>Box</code>, <code>Text</code>, <code>Button</code>, <code>Input</code>, <code>Select</code>, <code>Svg</code>, <code>Link</code>, <code>Code</code>, <code>Markdown</code>, <code>Client</code></td></tr>
+<tr><td>mobile</td><td>Pas d'<code>Input</code> ni de <code>Select</code> : le protocole transporte les pressions (ui_press) mais pas encore les saisies.</td></tr>
+</tbody></table></div>
+
+<pre><span class="k">const</span> PANE_ID = <span class="s">'notes'</span>
+
+on(<span class="s">'command.run'</span>, { command: <span class="s">'notes'</span> }, <span class="k">async</span> ($) =&gt; {
+  <span class="k">await</span> $.ui.open({ id: PANE_ID, title: <span class="s">'Notes'</span>, focus: <span class="k">true</span> })
+  <span class="k">return</span> { text: <span class="s">'Panneau ouvert'</span> }
+})
+
+on(<span class="s">'ui.render'</span>, { component: <span class="s">'Pane'</span> }, <span class="k">async</span> ($, e, next) =&gt; {
+  <span class="k">if</span> (e.requestId !== PANE_ID) <span class="k">return</span> next(e)
+  <span class="k">const</span> { Box, Text, Button } = $.ui.resolve(e)
+  <span class="k">return</span> (
+    &lt;Box flexDirection=<span class="s">"column"</span>&gt;
+      &lt;Text bold&gt;Mes notes&lt;/Text&gt;
+      &lt;Button key=<span class="s">"clear"</span>&gt;Effacer&lt;/Button&gt;
+    &lt;/Box&gt;
+  )
+})
+
+on(<span class="s">'ui.press'</span>, { element: <span class="s">'clear'</span> }, <span class="k">async</span> ($, e, next) =&gt; {
+  <span class="k">await</span> $.store.set(<span class="s">'notes'</span>, [])
+  $.ui.invalidate(<span class="s">'ui.render'</span>)   <span class="c">// redessiner</span>
+  <span class="k">return</span> next(e)
+})</pre>
+
+<h3>Rendu dynamique</h3>
+<ul>
+  <li><strong><code>$.ui.invalidate("ui.render")</code></strong> — redessine ; au plus 10 fois par seconde (30 pour le pane affiché et la bande).</li>
+  <li><strong><code>Raster</code> + <code>$.ui.blit</code></strong> — repeindre des cellules sans redessin, jusqu'à 120 fois par seconde acceptées (~60 affichées) : animations, sparklines.</li>
+  <li><strong><code>Image</code></strong> — une image (clé + source), échangeable par <code>blit</code>.</li>
+  <li><strong><code>Client</code></strong> — une région dessinée par un <em>module de surface</em> du plugin (chemin littéral) qui dialogue par <code>ui.message</code>.</li>
+  <li><strong>Lignes légères</strong> — <code>$.ui.log</code> (ligne grisée dans le transcript, non envoyée au modèle), <code>$.ui.toast</code>, <code>$.ui.status</code>, <code>$.ui.notice(tool_use_id, text)</code> (une ligne sous le dialogue d'un appel d'outil).</li>
+</ul>
+<div class="callout"><strong>Ce que le modèle voit après une réécriture</strong><p>Quand un hook réécrit l'entrée d'un outil, le modèle voit ce qu'il a demandé, pas la réécriture (pour préserver le cache de prompt). Pour lui dire ce qui a changé, le résultat de <code>tool.call</code> porte un champ <code>context</code> (issue #91870).</p></div>
+</section>
+
+<!-- ============================================================ 10 -->
+<section id="etendre">
+<h2><span class="n">10</span>Étendre <code>$</code> : contrats de nouns</h2>
+<p>Un mod peut <strong>ajouter un noun</strong> à <code>$</code> dans le pli (<em>fold</em>) <code>engine.create</code>. C'est ainsi que <code>telemetry</code> fournit <code>$.telemetry</code> à tous les plugins au-dessus de lui, et que <code>cockpit</code> fournit <code>$.cockpit</code>.</p>
+<pre>on(<span class="s">'engine.create'</span>, <span class="k">async</span> (_$, e, next) =&gt; {
+  <span class="k">const</span> beneath = <span class="k">await</span> next(e)          <span class="c">// $ tel que construit en dessous</span>
+  <span class="k">const</span> telemetry = telemetryOf({
+    id: () =&gt; beneath.session.id(),       <span class="c">// beneath peut être lié à un nom</span>
+  })
+  <span class="k">return</span> { ...beneath, telemetry }        <span class="c">// ajouter, ne rien remplacer</span>
+})</pre>
+<h3>La règle du contrat</h3>
+<ul>
+  <li>Le mod qui fournit le noun possède ses types, en un seul endroit : <code>types/index.d.ts</code>, <strong>sans aucun import</strong>, qui exporte les types et déclare le noun sur <code>EngineInterface</code> dans <code>'claude-code'</code>. Le manifeste le pointe par <code>"types": "./types/index.d.ts"</code>.</li>
+  <li>La valeur que rend le hook <code>engine.create</code> est vérifiée contre <code>EngineInterface['telemetry']</code> : l'implémentation ne peut pas dériver du contrat.</li>
+  <li>Un mod qui <em>appelle</em> le noun d'un autre lit le même fichier (via <code>include</code> dans son tsconfig) et ne le copie jamais.</li>
+  <li>Dans un test, on assoit un <strong>fournisseur</strong> : un plugin inline dont le hook <code>engine.create</code> ajoute le noun. Sans fournisseur, la construction de <code>$</code> refuse le hook, en nommant le noun que personne ne fournit.</li>
+</ul>
+<div class="callout"><strong>Dépendance recommandée, pas obligatoire</strong><p>Appelez le noun d'un autre (dans un <code>try/catch</code>) ; ne hookez pas ses verbes. Là où <code>telemetry</code> n'est pas assis, les appels de <code>diff</code> et <code>agents-md</code> « ne trouvent pas de noun et sont abandonnés sans trace ».</p></div>
+</section>
+
+<!-- ============================================================ 11 -->
+<section id="classic">
+<h2><span class="n">11</span>Hooks classiques : <code>classic.*</code></h2>
+<p>Les hooks shell de <code>settings.json</code> sont exposés comme des événements <code>classic.&lt;Nom&gt;</code>. Un mod peut les observer, et un plugin managé peut garantir qu'ils voient l'entrée du moteur telle quelle (<code>sec-default</code> : <code>on('classic.*', ($, e, next) =&gt; next.to(e, 'append'))</code>).</p>
+<p style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink-2);line-height:1.9">ConfigChange · CwdChanged · DirectoryAdded · Elicitation · ElicitationResult · FileChanged · InstructionsLoaded · MessageDisplay · Notification · PermissionDenied · PermissionRequest · PostCompact · PostModelSwitch · PostToolBatch · PostToolUse · PostToolUseFailure · PreCompact · PreModelSwitch · PreToolUse · SessionEnd · SessionStart · Setup · Stop · StopFailure · SubagentStart · SubagentStop · TaskCompleted · TaskCreated · TeammateIdle · UserPromptExpansion · UserPromptSubmit · WorktreeCreate · WorktreeRemove</p>
+<p>Chaque hook de settings est enveloppé un pour un dans un <code>classic.&lt;Événement&gt;</code>, avec le JSON exact en entrée et en sortie : le cycle de vie documenté ci-dessous reste valable, les mods s'y branchent à chaque étape.</p>
+<div class="grid2">
+<figure>
+<img class="light-only on-white" src="img/claude-code-hooks-lifecycle.svg" alt="Cycle de vie des hooks classiques de Claude Code" loading="lazy">
+<img class="dark-only" src="img/claude-code-hooks-lifecycle-dark.svg" alt="Cycle de vie des hooks classiques de Claude Code (thème sombre)" loading="lazy">
+<figcaption>Le cycle de vie des hooks classiques (documentation officielle, page <em>Hooks</em>).</figcaption>
+</figure>
+<figure>
+<img class="on-white" src="img/claude-code-hook-resolution.svg" alt="Résolution d'un hook classique" loading="lazy">
+<figcaption>Comment un hook classique est résolu (documentation officielle, page <em>Hooks</em>).</figcaption>
+</figure>
+</div>
+<div class="callout warn"><strong>Settings et built-ins</strong><p><code>disableAllHooks</code>, <code>allowManagedHooksOnly</code> et <code>--bare</code> gouvernent les hooks de settings et les plugins installés, pas les built-ins : un mod intégré comme <code>agents-md</code> se coupe dans <code>/plugin</code> (README d'<code>agents-md</code>).</p></div>
+</section>
+
+<!-- ============================================================ 12 -->
+<section id="config">
+<h2><span class="n">12</span>Options et <code>/config</code></h2>
+<p>Les champs <code>userConfig</code> du manifeste deviennent des lignes de <code>/config</code> (clé <code>&lt;plugin&gt;.&lt;champ&gt;</code>) et arrivent dans <code>register(on, options)</code>. Types : <code>string</code>, <code>number</code>, <code>boolean</code>, liste de chaînes ; <code>options</code> fait un sélecteur.</p>
+<pre>{
+  <span class="k">"pluginConfigs"</span>: {
+    <span class="k">"agents-md@builtin"</span>: {
+      <span class="k">"options"</span>: { <span class="k">"instructionFiles"</span>: <span class="s">"claude-md-and-agents-md"</span> }
+    }
+  }
+}</pre>
+<div class="callout warn"><strong>Changer une option recharge le module</strong><p><code>register()</code> repart, les compteurs en mémoire sont perdus. Un interrupteur qui écrit sa ligne doit être <strong>idempotent</strong> : ne rien écrire quand l'état demandé est déjà le courant. Ce qui doit survivre va dans <code>$.store</code> ou sur disque.</p></div>
+</section>
+
+<!-- ============================================================ 13 -->
+<section id="tests">
+<h2><span class="n">13</span>Tester un mod</h2>
+<pre>claude plugin test mods/diff</pre>
+<p>Un test reçoit le <code>$</code> du moteur et un <code>on</code> de plugin. Chaque appel sur <code>$</code> traverse tous les hooks du mod chargé tel qu'il est livré. Les hooks que le test enregistre avec <code>on</code> sont placés <strong>sous</strong> le mod — là où serait le reste du monde — et rien n'est sous eux : un appel qu'ils laissent sans réponse lève une erreur nommant l'événement.</p>
+<pre><span class="k">import</span> { describe, expect, mock, test, tier } <span class="k">from</span> <span class="s">'claude-code/testing'</span>
+
+tier(<span class="s">'builtin'</span>)
+
+describe(<span class="s">'register'</span>, () =&gt; {
+  test(<span class="s">'hors dépôt git, /diff le dit et n\'ouvre rien'</span>, <span class="k">async</span> ($, on) =&gt; {
+    <span class="k">const</span> opened: string[] = []
+    mock.clock(on)
+    on(<span class="s">'session.start'</span>, ($, e) =&gt; ({ cwd: e.cwd }))
+    on(<span class="s">'command.register'</span>, ($, e) =&gt; ({ value: { command: e.name } }))
+    on(<span class="s">'process.run'</span>, () =&gt; ({
+      value: { exitCode: 128, stdout: <span class="s">''</span>, stderr: <span class="s">'fatal: not a git repository'</span> },
+    }))
+    on(<span class="s">'ui.open'</span>, ($, e, next) =&gt; { opened.push(e.id); <span class="k">return</span> next(e) })
+
+    <span class="k">await</span> $.session.start({ surface: <span class="s">'terminal'</span>, isInteractive: <span class="k">true</span>, cwd: <span class="s">'/work'</span> })
+    <span class="k">const</span> { text } = <span class="k">await</span> $.command.run({ command: <span class="s">'diff'</span>, args: <span class="s">''</span>, origin: { kind: <span class="s">'composer'</span> } })
+
+    expect(text).toContain(<span class="s">"isn't in a git repository"</span>)
+    expect(opened).toEqual([])
+  })
+})</pre>
+<h3>Le kit <code>mock</code></h3>
+<ul>
+  <li><code>mock.env(on, variables)</code> — répond à <code>$.env</code> depuis la mémoire.</li>
+  <li><code>mock.store(on, entrées)</code> — un <code>$.store</code> en mémoire.</li>
+  <li><code>mock.clock(on)</code> — une horloge dont <code>advance(ms)</code> résout chaque attente (<code>sleep</code>, <code>after</code>, <code>every</code>) qu'elle franchit ; <code>await clock.settle()</code> laisse une dispatch non attendue avancer sans bouger l'horloge.</li>
+  <li><code>$.ui.press({ plugin, key })</code> — presse un <code>Button</code> que le test a dessiné.</li>
+</ul>
+<div class="callout"><strong>Conventions</strong><p>Un fichier de test est nommé d'après ce qu'il couvre (<code>register.test.ts</code> à côté de <code>hooks/register.ts</code>), déclare le tier dans lequel le mod se charge, et contient un seul <code>describe</code> du même nom ; le partagé va sous <code>tests/fixtures/</code>, un export par fichier. Dans <code>test(name, { plugins }, …)</code>, un plugin inline se lit comme un module : un <code>register</code> qui délègue n'enregistre rien que le chargeur voie.</p></div>
+</section>
+
+<!-- ============================================================ 14 -->
+<section id="outils">
+<h2><span class="n">14</span>Outils et boucle de travail</h2>
+<div class="table-wrap"><table><thead><tr><th>Commande</th><th>À quoi elle sert</th></tr></thead><tbody>
+<tr><td><code>/plugin-types</code></td><td>Écrit <code>claude-code.d.ts</code> depuis le binaire installé. À relancer après chaque mise à jour ; ne jamais éditer le fichier à la main.</td></tr>
+<tr><td><code>claude plugin validate --strict &lt;dossier&gt;</code></td><td>Ce que le moteur refuserait. Imprime ce que le module hooke et appelle : <strong>comparer cette liste à ce qu'on croyait avoir écrit</strong>.</td></tr>
+<tr><td><code>claude plugin test &lt;dossier&gt;</code></td><td>Les tests, contre le vrai moteur.</td></tr>
+<tr><td><code>npx tsc -p tsconfig.json</code></td><td>Le typage contre les déclarations.</td></tr>
+<tr><td><code>claude --plugin-dir &lt;dossier&gt; --debug</code></td><td>Lancer le mod depuis la source (rechargé à chaque enregistrement) ; le journal de debug dit ce que le moteur a refusé.</td></tr>
+<tr><td><code>claude plugin eval</code></td><td>Suites d'évaluation de plugins (depuis 2.1.269) ; <code>validate --json</code> depuis 2.1.259.</td></tr>
+</tbody></table></div>
+<figure>
+<img src="img/claude-code-plugin-eval.jpg" alt="Capture de terminal : claude plugin eval en cours d'exécution" loading="lazy" width="1600" height="900">
+<figcaption><code>claude plugin eval</code> dans le terminal (documentation officielle, <em>What's new</em>, semaine 37 de 2026).</figcaption>
+</figure>
+<div class="callout"><strong>Suivre les versions</strong><p>La première ligne des déclarations (<code>// Written by Claude Code 2.1.280.</code>) nomme la version qui les a produites. Elle bouge : entre 2.1.278 et 2.1.280, <code>ui.open</code> a gagné <code>isPlaced</code>, un matcher est apparu sur <code>session.receive</code> et <code>model.fork</code> a gagné <code>isAnswered</code>. La lire avant de déboguer une API qui a changé.</p></div>
+</section>
+
+<!-- ============================================================ 15 -->
+<section id="officiels">
+<h2><span class="n">15</span>Les mods existants</h2>
+<h3>Livrés par Anthropic (tier builtin)</h3>
+<div class="cards">
+  <div class="card"><h4>sec-default</h4><p>Assis tout en haut du tier <code>prepend</code> sur une machine à settings managés ou pour une organisation Team/Enterprise. Trois gestes seulement : continuer au-delà du tier user (<code>next.to(e, "append")</code>), refuser un appelant user par son nom, ou passer. Protège hooks classiques, CLAUDE.md managé, settings et allowlist MCP de l'organisation.</p></div>
+  <div class="card"><h4>diff</h4><p><code>/diff</code> : les changements non commités dans un pane à côté du transcript, fichier par fichier, rafraîchis quand Claude édite ou lance une commande. Pane ancré en plein écran, dialogue inline sinon ; bouton « ask » qui joint les hunks d'un fichier au prochain prompt.</p></div>
+  <div class="card"><h4>telemetry</h4><p>Ajoute <code>$.telemetry</code> (<code>log</code>, <code>mark</code>) dans le pli <code>engine.create</code> ; refuse tout appelant qui n'est pas builtin ; n'envoie rien là où les analytics de Claude Code sont coupées.</p></div>
+  <div class="card"><h4>agents-md</h4><p>Lit <code>AGENTS.md</code> comme <code>CLAUDE.md</code>, selon une option : <code>claude-md</code>, <code>claude-md-or-agents-md</code> (défaut), <code>claude-md-and-agents-md</code>, <code>managed-only</code>. Via <code>prompt.context</code> et <code>tool.call</code> sur <code>Read</code>.</p></div>
+</div>
+<figure class="narrow">
+<img class="on-white" src="img/claude-code-managed-source-precedence.svg" alt="Précédence des sources de settings managés" loading="lazy">
+<figcaption>La précédence des sources de settings managés (documentation officielle, <em>Managed settings</em>) : c'est la politique que <code>sec-default</code> lit via <code>$.settings.read({ source: "policy" })</code>. Une organisation qui définit <code>prependPlugins</code> compose elle-même le tier <code>prepend</code>, par exemple <code>["acme-guard@acme-tools", "sec-default@builtin"]</code>.</figcaption>
+</figure>
+<h3>Dans ce dépôt</h3>
+<div class="cards">
+  <div class="card"><h4>cockpit</h4><p>Un pane d'onglets à côté du transcript — Session, Usage, Stats, Files, Tools, Agents — et le noun <code>$.cockpit</code> que d'autres plugins remplissent avec leurs propres onglets.</p></div>
+  <div class="card"><h4>message</h4><p>Ce que les autres sessions envoient, tenu hors du contexte : <code>session.receive</code> écarte le message avant qu'il ne coûte, le fil vit dans une boîte aux lettres sur disque.</p></div>
+  <div class="card"><h4>clauget</h4><p>La balance avant le régime : <code>turn.step</code> mesure ce que chaque requête lit du cache, y écrit, transporte et produit ; <code>/clauget on</code> active des leviers mesurés, chacun affiché avec son coût.</p></div>
+</div>
+</section>
+
+<!-- ============================================================ 16 -->
+<section id="recettes">
+<h2><span class="n">16</span>Recettes</h2>
+
+<details open><summary>Garde-fou : refuser une lecture hors du projet</summary><div>
+<pre>on(<span class="s">'tool.call'</span>, { tool: <span class="s">'Read'</span> }, <span class="k">async</span> ($, e, next) =&gt; {
+  <span class="k">const</span> stat = <span class="k">await</span> $.fs.stat(e.file_path, { resolve: <span class="k">true</span> }).catch(() =&gt; undefined)
+  <span class="k">const</span> real = stat?.realPath
+  <span class="k">const</span> isInside = real !== undefined &amp;&amp; real.startsWith(ROOT + SEP)
+  <span class="k">return</span> isInside ? next(e) : { deny: <span class="s">'outside the project'</span> }
+})</pre>
+<p>Une allow-list sur <code>realPath</code> sous une racine résolue de la même façon est le garde robuste ; une deny-list sur les graphies n'est qu'un effort (lien dur, alias de casse).</p>
+</div></details>
+
+<details><summary>Ajouter une commande slash</summary><div>
+<pre>on(<span class="s">'session.start'</span>, <span class="k">async</span> ($, e, next) =&gt; {
+  <span class="k">await</span> $.command.register({ name: <span class="s">'hello'</span>, description: <span class="s">'Dit bonjour'</span> })
+  <span class="k">return</span> next(e)
+})
+on(<span class="s">'command.run'</span>, { command: <span class="s">'hello'</span> }, () =&gt; ({ text: <span class="s">'bonjour'</span> }))</pre>
+</div></details>
+
+<details><summary>Ajouter un outil pour le modèle, servi par un sous-agent</summary><div>
+<pre>on(<span class="s">'session.start'</span>, ($, e, next) =&gt;
+  $.tool.register({ name: <span class="s">'run'</span>, description: <span class="s">'Runs a spec'</span>,
+    inputSchema: { type: <span class="s">'object'</span>, properties: { spec: { type: <span class="s">'string'</span> } } } })
+   .then(() =&gt; next(e)))
+
+<span class="c">// l'agent « runner » est caché du modèle, lancé par l'outil du plugin</span>
+on(<span class="s">'agent.offer'</span>, { agent: <span class="s">'lab:runner'</span> }, () =&gt; ({ isOffered: <span class="k">false</span> }))
+on(<span class="s">'tool.call'</span>, { tool: <span class="s">'mcp__lab__run'</span> }, <span class="k">async</span> ($, e) =&gt; {
+  <span class="k">const</span> { agentId, deny } = <span class="k">await</span> $.agent.spawn({
+    subagentType: <span class="s">'lab:runner'</span>, prompt: e.spec, description: <span class="s">'run'</span> })
+  <span class="k">return</span> { result: deny ?? (<span class="k">await</span> answerOf(agentId)) }
+})</pre>
+</div></details>
+
+<details><summary>Joindre du contexte au prompt, sans le montrer</summary><div>
+<pre>on(<span class="s">'prompt.submit'</span>, <span class="k">async</span> ($, e, next) =&gt; {
+  <span class="k">const</span> branch = <span class="k">await</span> $.process.run([<span class="s">'git'</span>, <span class="s">'branch'</span>, <span class="s">'--show-current'</span>])
+  <span class="k">return</span> next({ ...e, context: [...(e.context ?? []), <span class="s">`Branche : ${branch.stdout.trim()}`</span>] })
+})</pre>
+<p>Le contexte s'attache <em>en descendant</em> : ajouté après que <code>next</code> a résolu, il n'est pas joint (et c'est journalisé).</p>
+</div></details>
+
+<details><summary>Retirer un rappel ou une section du system prompt</summary><div>
+<pre>on(<span class="s">'prompt.attachment'</span>, { type: <span class="s">'todo_reminder'</span> }, () =&gt; ({ text: <span class="k">null</span> }))
+on(<span class="s">'prompt.section'</span>, { name: <span class="s">'memory'</span> }, () =&gt; ({ text: <span class="k">null</span> }))</pre>
+<div class="callout gold"><strong>Attention au cache</strong><p>Changer une section du system prompt en cours de session invalide le cache de prompt : faites-le dès le départ, jamais au milieu.</p></div>
+</div></details>
+
+<details><summary>Autoriser d'office une lecture, supprimer l'attribution</summary><div>
+<pre>on(<span class="s">'tool.check'</span>, { tool: <span class="s">'Read'</span> }, () =&gt; ({ decision: <span class="s">'allow'</span> }))
+on(<span class="s">'attribution.text'</span>, { kind: <span class="s">'commit'</span> }, () =&gt; ({ text: <span class="s">''</span> }))</pre>
+</div></details>
+
+<details><summary>Un processus de fond pour toute la session</summary><div>
+<pre>on(<span class="s">'session.start'</span>, <span class="k">async</span> ($, e, next) =&gt; {
+  <span class="k">const</span> started = <span class="k">await</span> next(e)
+  <span class="k">void</span> (<span class="k">async</span> () =&gt; {
+    <span class="k">const</span> bridge = $.process.spawn({ argv: [<span class="s">'bridge'</span>, <span class="s">'watch'</span>, e.cwd] })
+    <span class="k">for await</span> (<span class="k">const</span> { text } <span class="k">of</span> bridge) $.ui.log(text, { to: <span class="s">'debug'</span> })
+  })()
+  <span class="k">return</span> started
+})</pre>
+</div></details>
+
+<details><summary>Caviarder ce qui sort de la session</summary><div>
+<pre>on(<span class="s">'session.send'</span>, ($, e, next) =&gt; next({ ...e, text: redact(e.text) }))
+on(<span class="s">'process.spawn'</span>, <span class="k">async function*</span> ($, e, next) {
+  <span class="k">for await</span> (<span class="k">const</span> chunk <span class="k">of</span> next(e))
+    <span class="k">yield</span> { ...chunk, text: chunk.text.replaceAll(token, <span class="s">'***'</span>) }
+})</pre>
+</div></details>
+
+<details><summary>Appeler un modèle depuis un hook</summary><div>
+<pre><span class="k">const</span> reply = <span class="k">await</span> $.model.complete({ model: <span class="s">'haiku'</span>, prompt: <span class="s">'Résume : …'</span>, system: <span class="s">'Sois bref.'</span> })
+$.ui.log(reply.isAnswered ? reply.text : <span class="s">`pas de réponse : ${reply.reason}`</span>)</pre>
+</div></details>
+
+<details><summary>Politique d'organisation : tier user interdit</summary><div>
+<pre>on(<span class="s">'plugin.register'</span>, { tier: <span class="s">'user'</span> }, () =&gt; ({ refuse: <span class="s">'managed only'</span> }))</pre>
+</div></details>
+</section>
+
+<!-- ============================================================ 17 -->
+<section id="pieges">
+<h2><span class="n">17</span>Pièges et bonnes pratiques</h2>
+<div class="callout gold">
+  <strong>La règle d'or : on compresse à l'écriture, jamais après</strong>
+  <p>Une réécriture rétroactive du contexte (recompresser un vieux résultat, réordonner des blocs, changer une section du system prompt en cours de session) invalide le suffixe du cache de prompt : tout ce qui suit est réécrit à 1,25×. Un mod qui fait cela coûte plus cher qu'il n'économise. Le seul moment gratuit pour réduire un contenu est <strong>avant qu'il n'entre dans le transcript</strong> — dans <code>tool.call</code>, pas après.</p>
+</div>
+<div class="table-wrap"><table><thead><tr><th>Piège</th><th>Ce qui se passe</th><th>La parade</th></tr></thead><tbody>
+<tr><td>Variable d'environnement absente</td><td>Plugin installé, hooks jamais exécutés, aucun message.</td><td>La mettre dans le profil du shell, pas devant une commande.</td></tr>
+<tr><td><code>$</code> déstructuré ou passé à une fonction</td><td>Module refusé au chargement.</td><td>Écrire <code>$.noun.verbe()</code> au site d'appel ; passer des <em>fonctions</em> (<code>() =&gt; $.fs.read(p)</code>).</td></tr>
+<tr><td>Deux hooks sans matcher sur le même événement</td><td>Le second est refusé.</td><td>Les fusionner, ou donner un matcher à l'un.</td></tr>
+<tr><td>Hooker le verbe d'un noun non fourni</td><td>La construction de <code>$</code> échoue.</td><td>Appeler (dans un <code>try</code>), ne pas hooker.</td></tr>
+<tr><td>Tout garder dans <code>$.store</code></td><td>Refusé au-delà de 4 MiB de JSON.</td><td>Ce qui grossit va sur disque via <code>$.fs</code> ; le store garde pointeurs et compteurs.</td></tr>
+<tr><td>Promettre une purge</td><td><code>$.fs</code> n'a pas de <code>delete</code>.</td><td>Réécrire le fichier vide.</td></tr>
+<tr><td>Pipe ou glob dans <code>$.process.run</code></td><td>Pas de shell : l'argv est pris littéralement.</td><td>Enchaîner des appels, filtrer en TypeScript.</td></tr>
+<tr><td><code>$</code> utilisé dans un timer</td><td><code>$</code> ne survit pas à sa dispatch.</td><td>Capturer <code>beneath</code> dans <code>engine.create</code>.</td></tr>
+<tr><td>Indexation dans un hook</td><td>Dépassement des 10 s : hook sauté.</td><td>Démarrer à <code>session.start</code>, continuer par <code>$.clock.every</code>.</td></tr>
+<tr><td>Ajouter une section au system prompt</td><td><code>prompt.section</code> ne connaît que les sections nommées par le cœur.</td><td>Passer par <code>prompt.context</code> et un bloc au nom du plugin.</td></tr>
+</tbody></table></div>
+<h3>Mesurer honnêtement</h3>
+<ul>
+  <li>Ne pas mélanger les unités : octets mesurés, tokens estimés, millisecondes et exécutions évitées sont quatre grandeurs. Pas de grand total.</li>
+  <li>Une estimation annonce sa méthode et sa fourchette (<code>chars/4</code> est faux sur du JSON dense et sur le CJK).</li>
+  <li>Le coût des mods eux-mêmes (<code>$.model.complete</code>…) s'affiche au même endroit que leurs économies.</li>
+  <li>Préférer une garantie vérifiable par un test déterministe à une promesse plausible.</li>
+</ul>
+</section>
+
+<!-- ============================================================ 18 -->
+<section id="sources">
+<h2><span class="n">18</span>Sources</h2>
+<ul class="src">
+  <li><a href="https://github.com/anthropics/claude-code/tree/main/mods">anthropics/claude-code — <code>mods/</code></a> : README général et README de <code>sec-default</code>, <code>diff</code>, <code>telemetry</code>, <code>agents-md</code> ; <code>mods/types/claude-code.d.ts</code>.</li>
+  <li><code>types/claude-code.d.ts</code> de ce dépôt, écrit par Claude Code 2.1.280 via <code>/plugin-types</code> — la référence de tous les noms, signatures et exemples cités.</li>
+  <li><code>CLAUDE.md</code> et <code>README.md</code> de ce dépôt : règles du chargeur vérifiées en pratique, contraintes d'environnement, installation.</li>
+  <li><a href="https://github.com/anthropics/claude-code/issues/91870">Issue #91870 — « Mods — make Claude 10x more extensible »</a> : annonce, cheat sheet, <a href="https://github.com/user-attachments/files/31802150/EXTERNAL.Function.Hooks.Core.Architecture.pdf">PDF d'architecture</a>, réponses de l'auteur (tiers, oignon, isolation, budget).</li>
+  <li><a href="https://code.claude.com/docs/en/hooks">Documentation — Hooks</a>, <a href="https://code.claude.com/docs/en/managed-settings">Managed settings</a>, <a href="https://code.claude.com/docs/en/features-overview">Features overview</a>, <a href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md">CHANGELOG</a> (2.1.259 <code>validate --json</code>, 2.1.260 panneau diff, 2.1.269 <code>plugin eval</code>, 2.1.277 AGENTS.md).</li>
+  <li><a href="https://deepwiki.com/anthropics/claude-code/4.1-mod-sdk:-engine-interface-hooks-and-noun-contracts">DeepWiki — Mod SDK</a> (synthèse générée par IA, non officielle).</li>
+</ul>
+<h4>Articles tiers (non officiels)</h4>
+<ul class="src">
+  <li><a href="https://claudefa.st/blog/tools/hooks/function-hooks">claudefa.st — Function hooks</a> : clé <code>modules</code>, comparaison shell/fonction, composants <code>ui.render</code>.</li>
+  <li><a href="https://vanja.io/claude-mods/">vanja.io — Claude Mods</a> : tables d'événements, ce qui reste instable.</li>
+  <li><a href="https://wavect.io/blog/claude-mods-function-hooks/">Wavect — mise en place et sécurité</a>.</li>
+  <li><a href="https://pluto.security/blog/claude-code-function-hooks-security/">Pluto Security — étude de sécurité</a> : quatre angles morts de confiance.</li>
+  <li><a href="https://medium.com/@joe.njenga/i-tested-claude-code-function-hooks-before-they-ship-and-built-my-first-one-2404158c00b0">Joe Njenga — premier mod pas à pas</a>.</li>
+  <li><a href="https://www.mindstudio.ai/blog/claude-code-mods-agents-md">MindStudio — AGENTS.md, premier mod intégré</a> ; <a href="https://aitmpl.com/mods/">aitmpl.com — catalogue de mods</a> ; <a href="https://karanbansal.in/blog/claude-mods-scoreboard">tableau des mods communautaires</a>.</li>
+</ul>
+<h4>Images</h4>
+<ul class="src">
+  <li>Cheat sheet : pièce jointe de l'issue #91870 · diagrammes et capture <code>plugin eval</code> : CDN de la documentation <code>code.claude.com</code> · illustration du terminal : <a href="https://claude.com/product/claude-code">claude.com/product/claude-code</a>. Copies locales dans <code>docs/img/</code>.</li>
+</ul>
+</section>
+
+<footer>Document rédigé pour le dépôt claude-mods — les mods sont en early access et l'API peut changer sans préavis. Vérifier contre la première ligne de <code>types/claude-code.d.ts</code>.</footer>
+</main>
+</div>
+<script>
+(function(){
+  var root=document.documentElement, btns=document.querySelectorAll('.theme button');
+  function apply(t){ if(t==='auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme',t);
+    btns.forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.t===t)); }); }
+  var saved='auto'; try{ saved=localStorage.getItem('mods-theme')||'auto'; }catch(e){}
+  apply(saved);
+  btns.forEach(function(b){ b.addEventListener('click',function(){ apply(b.dataset.t); try{ localStorage.setItem('mods-theme',b.dataset.t); }catch(e){} }); });
+  var links=[].slice.call(document.querySelectorAll('nav.toc a')), map={};
+  links.forEach(function(a){ map[a.getAttribute('href').slice(1)]=a; });
+  var io=new IntersectionObserver(function(es){ es.forEach(function(en){ if(en.isIntersecting){ links.forEach(function(a){a.classList.remove('on');}); var a=map[en.target.id]; if(a) a.classList.add('on'); } }); },{rootMargin:'-20% 0px -70% 0px'});
+  document.querySelectorAll('main section[id]').forEach(function(s){ io.observe(s); });
+  var toc=document.getElementById('toc'), mb=document.getElementById('menuBtn');
+  mb.addEventListener('click',function(){ var o=toc.classList.toggle('open'); mb.setAttribute('aria-expanded',String(o)); });
+  links.forEach(function(a){ a.addEventListener('click',function(){ toc.classList.remove('open'); mb.setAttribute('aria-expanded','false'); }); });
+})();
+</script>
+</body>
+</html>
