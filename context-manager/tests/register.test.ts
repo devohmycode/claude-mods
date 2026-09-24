@@ -418,7 +418,7 @@ describe('register', () => {
     expect((await $.command.run(managerRun('ignore 3'))).text, 'a number no card wears says so')
       .toBe('ContextManager: no card 3 (1–2)')
     expect((await $.command.run(managerRun('ignore nonsense'))).text)
-      .toBe('Usage: /manager [check | fix [n] [text] | ignore <n> | debug | reset]')
+      .toBe('Usage: /manager [check | fix [n] [text] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]')
     expect((await $.command.run(managerRun('fix'))).text, 'a fix with neither a number nor a note is a usage question')
       .toContain('Usage: /manager fix [n] [instruction]')
 
@@ -497,7 +497,7 @@ describe('register', () => {
     expect(debug.text, 'the registry survived, its evidence did not').toContain(`${SUITE_ID} · hits 0`)
     expect(debug.text).toContain('previous keep')
     expect((await $.command.run(managerRun('nonsense'))).text)
-      .toBe('Usage: /manager [check | fix [n] [text] | ignore <n> | debug | reset]')
+      .toBe('Usage: /manager [check | fix [n] [text] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]')
     expect((await $.command.run(managerRun('reset'))).text).toBe('ContextManager: session state reset')
   })
 
@@ -1308,11 +1308,18 @@ describe('register', () => {
 
     await $.ui.press({ plugin: 'contextmanager', key: `write:${SUITE_ID}` })
     await world.clock.settle()
+    expect(writes, 'the first press shows what would be written, and writes nothing').toHaveLength(0)
+    const previewed = textOf(await $.ui.render(paneRender()))
+    expect(previewed, "the bullet as it will land, cut to the pane").toContain("+ - run only the covering tests <!-- cm:")
+    expect(previewed).toContain('Write again to write it')
+
+    await $.ui.press({ plugin: 'contextmanager', key: `write:${SUITE_ID}` })
+    await world.clock.settle()
 
     expect(writes, 'one append to the project file').toHaveLength(1)
     expect(posix(writes[0]?.path ?? '')).toBe('/work/CLAUDE.md')
-    expect(writes[0]?.text, 'the heading was already there, so only the bullet was added')
-      .toBe('# Project\n\n## ContextManager\n- an older rule\n- run only the covering tests\n')
+    expect(writes[0]?.text, 'the heading was already there, so only the bullet was added, marked with the pattern it was written for')
+      .toBe(`# Project\n\n## ContextManager\n- an older rule\n- run only the covering tests <!-- cm:${SUITE_ID} -->\n`)
     expect(world.toasts.join(' ')).toContain('Wrote /work/CLAUDE.md')
 
     await $.ui.render(paneRender())

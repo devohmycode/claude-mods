@@ -49,4 +49,5 @@ export type Host = {
   exists(p: string): Promise<boolean>
   /** $.env.get('CONTEXTMANAGER_DEBUG') — read the debug flag. */
   debugFlag(): Promise<string | undefined>
+  home(): Promise<string | undefined>
 }

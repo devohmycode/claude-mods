@@ -100,6 +100,10 @@ describe('ledger', () => {
 
   test('normalize keys each tool family and caps the key', () => {
     expect(normalize('Bash', { command: 'cd x &&  bun   test' })).toEqual({ key: 'test:bun test', cls: 'test' })
+    // A quoted directory, the way a path with a space is written, and a cd on a line of its own.
+    expect(normalize('Bash', { command: 'cd "C:/Users/me/My Project" && npx tsc -p .' })).toEqual({ key: 'typecheck:npx tsc -p .', cls: 'typecheck' })
+    expect(normalize('Bash', { command: "cd '/work/a b' && git status --short" })).toEqual({ key: 'git:git status --short', cls: 'git' })
+    expect(normalize('Bash', { command: 'cd /work/app\nbun test 2>&1 | tail -5' })).toEqual({ key: 'test:bun test', cls: 'test' })
     expect(normalize('Bash', {})).toEqual({ key: 'other:', cls: 'other' })
     expect(normalize('Read', { file_path: '/w/a.ts', offset: 2, limit: 40 })).toEqual({ key: '/w/a.ts:2-40', cls: 'read' })
     expect(normalize('Read', { file_path: '/w/a.ts' })).toEqual({ key: '/w/a.ts:-', cls: 'read' })

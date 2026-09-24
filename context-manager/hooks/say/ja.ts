@@ -38,6 +38,7 @@ export const JA: PartialTexts = {
     time: '時間',
     context: '文脈',
     timeLead: 'ツール内',
+    timeUnmeasured: '未計測',
     contextLead: 'ツール由来',
     nothingYet: 'まだ目立つものはありません',
 
@@ -132,10 +133,10 @@ export const JA: PartialTexts = {
   },
 
   command: {
-    description: 'ContextManager: パネルの表示切替 · check | fix [n] [テキスト] | ignore <n> | debug | reset',
-    argumentHint: '[check | fix [n] [テキスト] | ignore <n> | debug | reset]',
+    description: 'ContextManager: パネルの表示切替 · check | fix [n] [テキスト] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset',
+    argumentHint: '[check | fix [n] [テキスト] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]',
 
-    usage: '使い方: /manager [check | fix [n] [テキスト] | ignore <n> | debug | reset]',
+    usage: '使い方: /manager [check | fix [n] [テキスト] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]',
     fixUsage: '使い方: /manager fix [n] [指示]（先頭の数字はパネルが振ったカード番号。数字がなければ修正…欄が開いているカード、なければカード 1）',
     paneShown: 'ContextManager パネルを表示しました',
     paneHidden: 'ContextManager パネルを隠しました',
@@ -190,6 +191,32 @@ Everything a machine matches is never translated and stays exactly as specified 
     kindPrefix: 'Claude は繰り返し',
     instruction: text => `ユーザーからの指示（ContextManager 経由）: ${text}`,
     kill: (kind, alternative) => `このセッションの残りはこのふるまいをやめてください: ${kind}。今後は: ${alternative}`,
+  },
+
+  detect: {
+    rereadKind: path => `Claude は繰り返し ${path} を読み直しています。その間ファイルは何も変わっていません`,
+    rereadWhy: times => `${times} 回読まれました。読み込みの間に、ファイルを変えうる編集・インストール・フォーマッタはありません。`,
+    rereadFix: path => `${path} についてはすでに読んだ内容で作業してください。読み直すのは変更後だけにし、そのときも必要な行だけにしてください。`,
+    fullSuiteKind: command => `Claude は繰り返し 1 ファイルの編集ごとに \`${command}\` のスイート全体を実行しています`,
+    fullSuiteWhy: times => `完全な実行が ${times} 回、どれも 1 ファイルだけの編集の直後です。最初の実行とコミット直前の実行は数えていません。`,
+    fullSuiteFix: '変更したファイルのテストだけを実行し、スイート全体はフェーズの最後に 1 回だけ実行してください。',
+    fullSuiteRuleTitle: '対象を絞ったテスト',
+    fullSuiteRule: '変更したファイルのテストだけを実行し、スイート全体はフェーズの最後に 1 回だけ実行する。',
+    sameSearchKind: search => `Claude は繰り返し同じ検索を実行しています: ${search}`,
+    sameSearchWhy: times => `同じ検索が ${times} 回、その間に編集はなく、毎回前回と同じ結果でした。`,
+    sameSearchFix: 'すでに実行した検索の結果を再利用し、ファイルが変わった後にだけ再実行してください。',
+    logDumpKind: command => `Claude は繰り返し \`${command}\` でログ全体を出力しています`,
+    logDumpWhy: (times, chars) => `${times} 回、毎回 ${chars} 文字以上を、絞り込まずに全部読んでいます。`,
+    logDumpFix: "ログは読む前に絞り込んでください: grep -nE 'ERROR|FAIL|Traceback' と tail -n 50 を通します。",
+    logDumpRuleTitle: 'ログの絞り込み',
+    logDumpRule: "ログは読む前に絞り込む（grep -nE 'ERROR|FAIL|Traceback'、tail -n 50）。ログ全体は読まない。",
+    prefixKind: {
+      model: 'Claude は繰り返しセッションの途中でモデルを切り替えており、そのたびにプロンプトキャッシュが書き直されています',
+      effort: 'Claude は繰り返しセッションの途中で effort レベルを切り替えており、そのたびにプロンプトキャッシュが書き直されています',
+    },
+    prefixWhy: (times, turns, tokens) =>
+      `切り替えは ${times} 回（ターン ${turns}）${tokens === null ? '' : `。直後のステップは通常より約 ${tokens} トークン多くキャッシュに書き込みました`}。`,
+    prefixFix: 'このセッションの残りはモデルと effort レベルを 1 つに固定し、切り替えはセッションの合間か /compact の直後にしてください。',
   },
 
   config: {

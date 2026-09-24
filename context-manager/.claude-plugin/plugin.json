@@ -2,7 +2,9 @@
   "name": "contextmanager",
   "version": "0.1.0",
   "description": "Watches a session for wasted context and time, shows a one-click card when a waste behaviour repeats, and lets the user steer or stop it.",
-  "author": { "name": "DevOhMyCode" },
+  "author": {
+    "name": "DevOhMyCode"
+  },
   "license": "MIT",
   "userConfig": {
     "language": {
@@ -11,7 +13,124 @@
       "description": "The language ContextManager reads in: the pane, the line above the prompt, what /manager answers, and the cards the audit writes — what Claude keeps doing, why, and the fix it offers. English is the complete one and every other language falls back to it line by line, so a half-finished translation shows its own words where it has them and English where it has not. It does not touch what you type: /manager and its subcommands (check, fix, ignore, debug, reset) keep their spelling whatever the language, and so do the pattern ids, the categories inside them and the evidence handles. Cards found before you changed it keep the language they were written in until the behaviour is found again.",
       "required": false,
       "default": "en",
-      "options": ["en", "fr", "es", "de", "zh-CN", "ja"]
+      "options": [
+        "en",
+        "fr",
+        "es",
+        "de",
+        "zh-CN",
+        "ja"
+      ]
+    },
+    "sensitivity": {
+      "type": "string",
+      "title": "Sensitivity",
+      "description": "How eager ContextManager is. quiet waits for twice the work between audits, needs one more occurrence before the code names a behaviour, and keeps at most three findings per audit; verbose checks twice as often and names a behaviour one occurrence sooner. normal is the default.",
+      "required": false,
+      "default": "normal",
+      "options": [
+        "quiet",
+        "normal",
+        "verbose"
+      ]
+    },
+    "apply": {
+      "type": "boolean",
+      "title": "Apply",
+      "description": "Lets a card offer Apply beside Fix for two behaviours the code detects: the whole test suite after a one-file edit (rewritten to that file's tests, with the whole suite every third run) and a whole log read (rewritten to its last 300 lines). Only the commands of cards you applied are rewritten, each rewrite is announced to Claude, and running the original again lets it through. Off by default: nothing is rewritten.",
+      "required": false,
+      "default": false
+    },
+    "infoRefresh": {
+      "type": "number",
+      "title": "Seconds between two readings of the session row",
+      "description": "How often the Session row of the pane re-reads git, the rate limits, the cost and the machine, while the pane is open; at least 5 seconds, 30 by default. Nothing is read while the pane is closed. Reading the machine starts a process (PowerShell on Windows, top on macOS), so a low value costs a little CPU.",
+      "required": false,
+      "default": 30
+    },
+    "showModel": {
+      "type": "boolean",
+      "title": "Show the model",
+      "description": "The model the main loop runs, as each step names it. Shown in the Session row of the pane.",
+      "required": false,
+      "default": true
+    },
+    "showEffort": {
+      "type": "boolean",
+      "title": "Show the effort",
+      "description": "The effort level of the main loop, as each step names it. Shown in the Session row of the pane.",
+      "required": false,
+      "default": true
+    },
+    "showFiveHour": {
+      "type": "boolean",
+      "title": "Show the 5-hour quota used",
+      "description": "How much of the five-hour rate-limit window is used, in percent. Shown in the Session row of the pane.",
+      "required": false,
+      "default": true
+    },
+    "showFiveHourReset": {
+      "type": "boolean",
+      "title": "Show the time left in the 5-hour window",
+      "description": "How long until the five-hour window resets. Shown in the Session row of the pane.",
+      "required": false,
+      "default": true
+    },
+    "showWeek": {
+      "type": "boolean",
+      "title": "Show the weekly quota used",
+      "description": "How much of the weekly rate-limit window is used, in percent. Shown in the Session row of the pane.",
+      "required": false,
+      "default": true
+    },
+    "showCost": {
+      "type": "boolean",
+      "title": "Show the session cost",
+      "description": "What the session has cost so far, in US dollars, as /cost totals it. Shown in the Session row of the pane.",
+      "required": false,
+      "default": true
+    },
+    "showBranch": {
+      "type": "boolean",
+      "title": "Show the git branch",
+      "description": "The branch of the working directory; nothing outside a repository. Shown in the Session row of the pane.",
+      "required": false,
+      "default": true
+    },
+    "showDiff": {
+      "type": "boolean",
+      "title": "Show the git additions and removals",
+      "description": "Lines added and removed against the last commit, staged or not. Shown in the Session row of the pane.",
+      "required": false,
+      "default": true
+    },
+    "showSkill": {
+      "type": "boolean",
+      "title": "Show the active skill",
+      "description": "The last skill loaded in this session. Shown in the Session row of the pane.",
+      "required": false,
+      "default": true
+    },
+    "showVersion": {
+      "type": "boolean",
+      "title": "Show the Claude Code version",
+      "description": "The version the claude binary reports, read once per session. Shown in the Session row of the pane.",
+      "required": false,
+      "default": true
+    },
+    "showClock": {
+      "type": "boolean",
+      "title": "Show the date and time",
+      "description": "The date and time of the last reading. Shown in the Session row of the pane.",
+      "required": false,
+      "default": true
+    },
+    "showSystem": {
+      "type": "boolean",
+      "title": "Show CPU and RAM",
+      "description": "The load of the machine: CPU and memory in use, in percent. Shown in the Session row of the pane.",
+      "required": false,
+      "default": true
     }
   }
 }

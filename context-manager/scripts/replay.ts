@@ -1,5 +1,7 @@
-// Dev replay (`bun run scripts/replay.ts <session-id | main.jsonl>… [--at <ISO>]… [--window <n>] [--lang <tag>] [--summary | --prompt | --judge]`):
+// Dev replay (`bun run scripts/replay.ts <session-id | main.jsonl>… [--at <ISO>]… [--window <n>] [--lang <tag>] [--summary | --prompt | --judge | --detect]`):
 // feeds a recorded session through `reduce` and prints what the judge would have seen, and with `--judge` what it says.
+// `--detect` runs the deterministic detectors alone: what the plugin names at no model cost. The prefix detector reads
+// the steps' model and effort, which a transcript does not record, so it stays silent here.
 // `--lang` settles the bundle before anything is built, so `--prompt` shows the language paragraph the fork
 // would really be handed and `--judge` reads its answer back through that language's own `kindPrefix`:
 // replaying one recorded session under `en` and under `fr` is how a translation's findings are checked.
@@ -23,6 +25,7 @@ import { basename, dirname, join } from 'node:path'
 import { createInterface } from 'node:readline'
 
 import { agentsBlock, sinksBlock, statsLines, turnsBlock } from '../hooks/core/blocks.ts'
+import { detect } from '../hooks/core/detect.ts'
 import { agentAliases } from '../hooks/core/evidence.ts'
 import { buildPrompt, merge, parseReply } from '../hooks/core/judge.ts'
 import { rowOf } from '../hooks/core/ledger.ts'
@@ -50,7 +53,7 @@ type Ev =
 
 type Journal = { runId: string; entries: JournalEntry[]; agents: Set<string> }
 
-type Mode = 'summary' | 'prompt' | 'judge'
+type Mode = 'summary' | 'prompt' | 'judge' | 'detect'
 
 const ORDER: Record<Ev['kind'], number> = { 'turn.start': 0, 'loop.start': 1, row: 2, 'loop.end': 3, 'turn.end': 4 }
 
@@ -397,6 +400,12 @@ const report = (state: State, at: number, mode: Mode, model: string): { state: S
     process.stdout.write(`${buildPrompt(state)}\n`)
     return { state, out: { at: iso, ...digest(state) } }
   }
+  if (mode === 'detect') {
+    const found = detect(state)
+    say(`detected ${found.length}`)
+    for (const f of found) say(`${findingLine(f)}\n    why: ${f.why}`)
+    return { state, out: { at: iso, ...digest(state), detected: found.map(f => ({ id: f.id, kind: f.kind, evidence: f.evidence, why: f.why })) } }
+  }
   const blocks = blocksOfState(state)
   if (mode === 'summary') {
     for (const [name, text] of Object.entries(blocks)) say(`\n## ${name}\n${text}`)
@@ -433,11 +442,11 @@ const parseArgs = (argv: string[]): { inputs: string[]; ats: number[]; window: n
       // The plugin is silent about a tag it does not know, on purpose; a dev tool told to replay in a
       // language that does not exist has misunderstood its operator and says so.
       if (!LANGUAGE_TAGS.includes(lang)) throw new Error(`--lang wants one of ${LANGUAGE_TAGS.join(', ')}, got ${lang}`)
-    } else if (arg === '--summary' || arg === '--prompt' || arg === '--judge') mode = arg.slice(2) as Mode
+    } else if (arg === '--summary' || arg === '--prompt' || arg === '--judge' || arg === '--detect') mode = arg.slice(2) as Mode
     else if (arg.startsWith('--')) throw new Error(`unknown option ${arg}`)
     else inputs.push(arg)
   }
-  if (inputs.length === 0) throw new Error('usage: bun run scripts/replay.ts <session-id | main.jsonl>… [--at <ISO>]… [--window <n>] [--lang <tag>] [--summary | --prompt | --judge]')
+  if (inputs.length === 0) throw new Error('usage: bun run scripts/replay.ts <session-id | main.jsonl>… [--at <ISO>]… [--window <n>] [--lang <tag>] [--summary | --prompt | --judge | --detect]')
   return { inputs, ats: ats.sort((a, b) => a - b), window, mode, lang }
 }
 

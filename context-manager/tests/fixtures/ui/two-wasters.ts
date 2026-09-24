@@ -6,6 +6,14 @@ export const twoWasters: PaneModel = {
     percent: 64,
     tokensToCompaction: 41_000,
     turnsToCompaction: 6,
+    turnsRange: null,
+    prefix: { total: 18_900, parts: [{ name: 'System tools', tokens: 12_400 }, { name: 'MCP tools', tokens: 3_400 }, { name: 'System prompt', tokens: 3_100 }] },
+    info: {
+      session: ['opus-4-6', 'effort high', '42%', '2h13', '18%', '$3.42', 'skill commit'],
+      machine: ['24/09 12:07', 'CPU 23%', 'RAM 61%', 'v2.1.280'],
+      repo: ['⎇ main', '+120 −34'],
+    },
+    compaction: { turn: 9, sinks: [{ label: 'tests', share: 48 }, { label: 'reads', share: 30 }, { label: 'agents', share: 12 }] },
     trend: [4, 9, 15, 21, 28, 35, 43, 51, 58, 64],
     time: {
       total: 11_520_000,
@@ -15,6 +23,7 @@ export const twoWasters: PaneModel = {
         { label: 'git', amount: 240_000, count: 1 },
       ],
     },
+    timeUnmeasured: false,
     context: {
       total: 410_000,
       sinks: [
@@ -66,4 +75,6 @@ export const twoWasters: PaneModel = {
   steerDraft: null,
   decided: [],
   artifacts: [],
+  preview: null,
+  stale: [],
 }

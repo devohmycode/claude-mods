@@ -6,11 +6,12 @@ import type { RenderElement } from 'claude-code'
 import { logoCells } from './core/logo'
 import { collapseWs, duration, fit, gauge, kilo, padCells, tokensOf, widthOf } from './core/text'
 import { sparkline } from './core/trend'
-import { NO_CALLS, PANE_INLINE_ROWS, PANE_TITLE } from './core/types'
+import { NO_CALLS, PANE_INLINE_ROWS, PANE_TITLE, PREVIEW_LINES, SINKS } from './core/types'
 import type {
   Actions,
   Artifact,
   ArtifactKind,
+  ArtifactPreview,
   BandModel,
   BandProps,
   Card,
@@ -20,6 +21,7 @@ import type {
   Header,
   PaneModel,
   PaneProps,
+  StaleRule,
   Ui,
 } from './core/types'
 import { say } from './say'
@@ -33,7 +35,7 @@ import { say } from './say'
 const TONES = { accent: 'suggestion', good: 'success', warm: 'warning', hot: 'error' } as const
 const GAUGE_WARM = 70         // the fill turns warm at this share of the window, and hot past GAUGE_HOT
 const GAUGE_HOT = 90
-const GUTTER = 10             // cells of the dim label column inside an opened card
+const GUTTER = 12             // cells of the dim label column, in an opened card and under the header: `Information` and a space
 const NUMBER_CELLS = 3        // the card's dim number and the space after it (two digits and their space fit)
 const GLYPH_CELLS = 2         // the waster's '●' and the space after it
 const CALL_GAP = 3            // cells between the columns of an evidence row
@@ -55,6 +57,7 @@ const LOGO_MIN_CELLS = 40     // header cells below which the mark is dropped wh
 const VERB_GAP = 3
 const RULES_MIN_TITLE = 8     // a rule's title keeps this many cells before its kind label is dropped whole
 const INFO_CELLS = 1          // 'i'
+const PREVIEW_INDENT = 2      // cells a Write preview sits in from its rule's row
 const CONTROL_GAP = 2         // cells between a row's text and the Button at its right edge
 const STATUS_GAP = 4          // cells between the pane's name and what the judge has cost beside it
 const TAG_MIN_CELLS = 52      // the card's cells at 60 body columns: under that the category tag is dropped
@@ -63,6 +66,7 @@ const BAND_RESERVE = 4        // cells the engine's own collapse control '[-]' t
 const BAND_LEAD = PANE_TITLE.length + 4   // the name, the space before the mark, the mark itself and the two cells after it
 const TITLE_ROWS = 2
 const VALUE_ROWS = 2          // rows the fix keeps under the verbs
+const PREFIX_PARTS = 8        // parts of the prefix the Prefix row lists, largest first; they wrap, so more fit than a line holds
 const HINT_MIN = 12           // cells the judge's sentence keeps at the end of a Time or Context row before it is dropped whole
 const DETAIL_ROWS_MAX = 4     // rows `why` and `fix` each keep inside the opened details
 const MIN_CELLS = 24
@@ -80,7 +84,7 @@ const DETAIL_ROWS = 3         // 'why', 'fix' and the summary row before the cit
 const STAT_ROWS = 2           // the stats line and the fix line of a folded card
 const GLYPHS = {
   live: '●', fixed: '✓', noted: '✎', ignored: '–', fix: '→', field: '›', quote: '↳',
-  check: '↻', write: '✎', tryOnce: '▸', skip: '–', checking: '◐', watching: '◌', died: '✕',
+  check: '↻', write: '✎', tryOnce: '▸', skip: '–', checking: '◐', watching: '◌', died: '✕', apply: '»',
 } as const
 const DECIDED_GLYPH: Record<Choice, string> = { keep: GLYPHS.ignored, steer: GLYPHS.noted, kill: GLYPHS.fixed }
 // The band's mark, one per state: a dead turn, a run in flight, cards waiting, a saving to show off, or a quiet watch.
@@ -283,7 +287,12 @@ const contextText = (header: Header, room: number): string => {
   const turns = near !== null && header.turnsToCompaction !== null && header.turnsToCompaction > 0
     ? say().pane.turnsLeft(header.turnsToCompaction)
     : null
+  // The spread rides on the estimate it qualifies, and is the first thing a tight row gives back.
+  const spread = turns !== null && header.turnsRange !== null
+    ? `${turns} ${say().pane.turnsRange(header.turnsRange.low, header.turnsRange.high)}`
+    : null
   const ladder = [
+    joined([used, near, spread ?? turns]),
     joined([used, near, turns]),
     joined([used, near]),
     joined([used, nearer]),
@@ -310,21 +319,29 @@ const judgeText = (header: Header, room: number): string => {
   return ladder.find(text => widthOf(text) <= room) ?? ''
 }
 
-/** What the saved row draws: what the session got back, and that a run is in flight. */
-const savedTexts = (header: Header, room: number): { saved: string; tail: string } => {
+/**
+ * What the saved row draws: what the session got back, what the audit cost to find it, and that a run is in
+ * flight. The saving and the cost stand side by side in their own units — a share of the window, a share of
+ * the session's tokens — and are never netted against each other. A tight row gives back the run note first,
+ * then the cost, then a figure of the saving.
+ */
+const savedTexts = (header: Header, room: number): { saved: string; cost: string; tail: string } => {
   const pct = header.savedPct > 0 ? `~${header.savedPct}%` : null
   const ms = header.savedMs > 0 ? duration(header.savedMs) : null
+  const cost = header.judgeRuns > 0 && header.judgeShare > 0 ? say().pane.auditCost(header.judgeShare) : ''
   const tail = header.judgeRunning ? say().pane.checkingLong : ''
-  const cells = (row: { saved: string; tail: string }): number =>
-    (row.saved === '' ? 0 : widthOf(say().pane.saved) + widthOf(row.saved))
-    + (row.tail === '' ? 0 : (row.saved === '' ? 0 : SEP.length) + widthOf(row.tail))
+  const cells = (row: { saved: string; cost: string; tail: string }): number => {
+    const parts = [row.saved === '' ? 0 : widthOf(say().pane.saved) + widthOf(row.saved), widthOf(row.cost), widthOf(row.tail)].filter(n => n > 0)
+    return parts.reduce((sum, n) => sum + n, 0) + Math.max(0, parts.length - 1) * SEP.length
+  }
   const ladder = [
-    { saved: joined([pct, ms]), tail },
-    { saved: joined([pct, ms]), tail: '' },
-    { saved: joined([pct ?? ms]), tail: '' },
-    { saved: '', tail: '' },
+    { saved: joined([pct, ms]), cost, tail },
+    { saved: joined([pct, ms]), cost, tail: '' },
+    { saved: joined([pct, ms]), cost: '', tail: '' },
+    { saved: joined([pct ?? ms]), cost: '', tail: '' },
+    { saved: '', cost: '', tail: '' },
   ]
-  return ladder.find(row => cells(row) <= room) ?? { saved: '', tail: '' }
+  return ladder.find(row => cells(row) <= room) ?? { saved: '', cost: '', tail: '' }
 }
 
 /** The 'Check now' button; while a run is in flight it says so, dims, and answers no press. */
@@ -366,12 +383,13 @@ const nameRow = (ui: Ui, header: Header, actions: Actions, cells: number): Rende
  */
 const savedRows = (ui: Ui, header: Header, cells: number, isCompact: boolean): RenderElement[] => {
   const { Text } = ui
-  const { saved, tail } = savedTexts(header, cells)
+  const { saved, cost, tail } = savedTexts(header, cells)
   return [
     <Text wrap="truncate-end">
       {saved === '' ? null : <Text dimColor>{say().pane.saved}</Text>}
       {saved === '' ? null : <Text color={TONES.good}>{saved}</Text>}
-      {tail === '' ? null : <Text dimColor>{`${saved === '' ? '' : SEP}${tail}`}</Text>}
+      {cost === '' ? null : <Text dimColor>{`${saved === '' ? '' : SEP}${cost}`}</Text>}
+      {tail === '' ? null : <Text dimColor>{`${saved === '' && cost === '' ? '' : SEP}${tail}`}</Text>}
     </Text>,
     ...(header.judgeRunning && tail === '' && !isCompact
       ? [<Text dimColor wrap="truncate-end">{fit(say().pane.checkingLong, cells)}</Text>]
@@ -383,18 +401,70 @@ const savedRows = (ui: Ui, header: Header, cells: number, isCompact: boolean): R
  * One budget as one row: its label in the gutter, one figure, and the judge's sentence about it, dim.
  * The named sinks behind the figure are the model's and `/manager debug`'s; a row is one fact here.
  */
-const sinkRow = (ui: Ui, label: string, total: string, sentence: string, cells: number): RenderElement => {
-  const { Text } = ui
+const sinkRow = (ui: Ui, label: string, total: string, sentence: string, cells: number): RenderElement =>
+  // The sentence wraps word by word under the figure, so a narrow pane still reads all of it.
+  partsRow(ui, label, total, collapseWs(sentence).split(' ').filter(word => word !== ''), cells, ' ')
+
+/** The prefix row's parts: its largest, named as /context names them, with their tokens. */
+const prefixParts = (prefix: NonNullable<Header['prefix']>): string[] =>
+  prefix.parts.slice(0, PREFIX_PARTS).map(p => `${p.name.toLowerCase()} ${kilo(p.tokens)}`)
+
+/** The compaction row's parts: the sinks that had filled the window, as shares, in the pane's words. */
+const shareParts = (shares: NonNullable<Header['compaction']>['sinks']): string[] =>
+  shares.map(s => say().pane.share(say().pane.sinkNames[s.label] ?? s.label, s.share))
+
+/**
+ * A figure and its parts laid over as many lines as the width needs. A part is never cut to fit the end of a
+ * line — it moves down whole — so a narrow pane shows every part rather than an ellipsis; only a part wider
+ * than a whole line is cut, since no line could hold it.
+ *
+ * @param figure what the row states first, on the first line
+ * @param parts the items behind it, in order
+ * @param width the cells of the content column
+ * @returns the first line's parts, then each further line
+ */
+export const wrapParts = (figure: string, parts: readonly string[], width: number, glue: string = SEP): { first: string[]; rest: string[] } => {
+  const first: string[] = []
+  const rest: string[] = []
+  // The figure and the first part are always set apart by SEP; the parts among themselves by the glue.
+  let used = widthOf(figure)
+  let line = ''
+  for (const part of parts) {
+    const cost = (first.length === 0 ? SEP.length : widthOf(glue)) + widthOf(part)
+    if (rest.length === 0 && line === '' && used + cost <= width) {
+      first.push(part)
+      used += cost
+      continue
+    }
+    const next = line === '' ? part : `${line}${glue}${part}`
+    if (widthOf(next) <= width) {
+      line = next
+      continue
+    }
+    if (line !== '') rest.push(line)
+    line = fit(part, width)
+  }
+  if (line !== '') rest.push(line)
+  return { first, rest }
+}
+
+/**
+ * A budget as rows: the figure, then its detail on as many lines as the width needs — a list's parts set apart
+ * by SEP, or a sentence's words by a space. A narrow pane shows the whole of it rather than an ellipsis.
+ */
+const partsRow = (ui: Ui, label: string, figure: string, parts: readonly string[], cells: number, glue: string = SEP): RenderElement => {
+  const { Box, Text } = ui
   const value = gutterValue(cells)
-  const figure = fit(total, value)
-  const room = value - widthOf(figure) - SEP.length
-  // A sentence left a handful of cells says nothing, so it is dropped whole rather than cut to nothing.
-  const tail = room >= HINT_MIN ? `${SEP}${fit(collapseWs(sentence), room)}` : ''
+  const shown = fit(figure, value)
+  const { first, rest } = wrapParts(shown, parts, value, glue)
   return gutterRow(ui, label, (
-    <Text wrap="truncate-end">
-      {figure}
-      {tail === '' ? null : <Text dimColor>{tail}</Text>}
-    </Text>
+    <Box flexDirection="column">
+      <Text wrap="truncate-end">
+        {shown}
+        {first.length === 0 ? null : <Text dimColor>{`${SEP}${first.join(glue)}`}</Text>}
+      </Text>
+      {rest.map(line => <Text dimColor wrap="truncate-end">{line}</Text>)}
+    </Box>
   ), cells)
 }
 
@@ -414,8 +484,28 @@ const headerSection = (
   const budgets = isCompact
     ? []
     : [
-      ...(header.time === null ? [] : [{ label: say().pane.time, figure: `${span(header.time.total)} ${say().pane.timeLead}`, sentence: header.judgeTime }]),
+      ...(header.time === null ? [] : [{
+        label: say().pane.time,
+        figure: header.timeUnmeasured ? say().pane.timeUnmeasured : `${span(header.time.total)} ${say().pane.timeLead}`,
+        sentence: header.judgeTime,
+      }]),
       ...(header.context === null ? [] : [{ label: say().pane.context, figure: `${kilo(header.context.total)} ${say().pane.contextLead}`, sentence: header.judgeContext }]),
+    ]
+  // The session's facts first, above what the ledger measured: they are what a glance comes for. One row each
+  // for the session and its quotas, the machine, the repository; a row with nothing known is not drawn.
+  const facts = isCompact
+    ? []
+    : ([
+      [say().pane.session, header.info.session],
+      [say().pane.machine, header.info.machine],
+      [say().pane.repo, header.info.repo],
+    ] as const).flatMap(([label, parts]) => (parts.length === 0 ? [] : [{ label, figure: parts[0] ?? '', parts: parts.slice(1) }]))
+  // The two budgets whose detail is a list rather than a sentence: every part is worth reading, so they wrap.
+  const lists = isCompact
+    ? []
+    : [
+      ...(header.prefix === null ? [] : [{ label: say().pane.prefix, figure: `${kilo(header.prefix.total)} ${say().pane.prefixLead}`, parts: prefixParts(header.prefix) }]),
+      ...(header.compaction === null ? [] : [{ label: say().pane.compaction, figure: say().pane.compactedAt(header.compaction.turn), parts: shareParts(header.compaction.sinks) }]),
     ]
   // Indented to the cards' content column, so the labels and the card titles start at one x.
   return (
@@ -431,8 +521,10 @@ const headerSection = (
           {savedRows(ui, header, room, isCompact)}
         </Box>
       </Box>
-      {budgets.length === 0 ? null : blank(ui)}
+      {budgets.length === 0 && lists.length === 0 && facts.length === 0 ? null : blank(ui)}
+      {facts.map(fact => partsRow(ui, fact.label, fact.figure, fact.parts, cells))}
       {budgets.map(budget => sinkRow(ui, budget.label, budget.figure, budget.sentence ?? say().pane.nothingYet, cells))}
+      {lists.map(list => partsRow(ui, list.label, list.figure, list.parts, cells))}
       {blank(ui)}
     </Box>
   )
@@ -476,15 +568,21 @@ const titleRow = (ui: Ui, card: Card, actions: Actions, cells: number): RenderEl
 const verbsRow = (ui: Ui, card: Card, actions: Actions, cells: number): RenderElement => {
   const { Box, Button } = ui
   const id = card.patternId
-  const { fix, fixNote, ignore } = say().pane
-  const row = controlsFitting([fix, fixNote, ignore], [GLYPHS.fixed, GLYPHS.noted, GLYPHS.ignored], VERB_GAP, cells)
-  const [kill = fix, steer = fixNote, keep = ignore] = row.labels
+  const { fix, fixNote, ignore, apply } = say().pane
+  // Apply comes last and only where the lever is on and the behaviour has a rewrite: the three decisions keep
+  // their places whether it is there or not.
+  const canApply = card.canApply === true
+  const row = canApply
+    ? controlsFitting([fix, fixNote, ignore, apply], [GLYPHS.fixed, GLYPHS.noted, GLYPHS.ignored, GLYPHS.apply], VERB_GAP, cells)
+    : controlsFitting([fix, fixNote, ignore], [GLYPHS.fixed, GLYPHS.noted, GLYPHS.ignored], VERB_GAP, cells)
+  const [kill = fix, steer = fixNote, keep = ignore, applied = apply] = row.labels
   // The labels are the person's words; the keys stay the decisions' own, so a press is still a kill or a keep.
   return (
     <Box flexDirection="row" gap={row.gap}>
       <Button key={`card:${id}:kill`} plain onPress={() => actions.kill(id)}>{kill}</Button>
       <Button key={`card:${id}:steer`} plain onPress={() => actions.steer(id)}>{steer}</Button>
       <Button key={`card:${id}:keep`} plain onPress={() => actions.keep(id)}>{keep}</Button>
+      {canApply ? <Button key={`card:${id}:apply`} plain onPress={() => actions.apply(id)}>{applied}</Button> : null}
     </Box>
   )
 }
@@ -825,6 +923,42 @@ const artifactRow = (ui: Ui, artifact: Artifact, actions: Actions, cells: number
     : <Box flexDirection="row" width={cells} justifyContent="space-between">{title}{verbs}</Box>
 }
 
+/**
+ * What Write would do, under the rule it belongs to: the file, the lines it adds, and what the second press
+ * does — writes them, or nothing, where the file already says it.
+ */
+const previewBlock = (ui: Ui, preview: ArtifactPreview, cells: number): RenderElement => {
+  const { Box, Text } = ui
+  const room = Math.max(8, cells - PREVIEW_INDENT)
+  const lines = preview.added.split('\n').map(line => line.trimEnd()).filter(line => line !== '').slice(0, PREVIEW_LINES)
+  const status = preview.duplicate ? say().pane.previewDuplicate : preview.overwrites ? say().pane.previewOverwrites : say().pane.previewConfirm
+  return (
+    <Box flexDirection="column" paddingLeft={PREVIEW_INDENT}>
+      <Text dimColor wrap="truncate-end">{fit(`→ ${preview.path}`, room)}</Text>
+      {preview.duplicate ? null : lines.map(line => <Text color={TONES.good} wrap="truncate-end">{fit(`+ ${line}`, room)}</Text>)}
+      <Text dimColor wrap="truncate-end">{fit(status, room)}</Text>
+    </Box>
+  )
+}
+
+/** A written rule whose behaviour never came back: what it says, why it is offered, and Remove or Keep. */
+const staleRow = (ui: Ui, rule: StaleRule, actions: Actions, cells: number): RenderElement => {
+  const { Box, Text, Button } = ui
+  const id = rule.patternId
+  const row = controlsFitting([say().pane.remove, say().pane.keepIt], [GLYPHS.skip, GLYPHS.fixed], CONTROL_GAP, cells)
+  const [remove = say().pane.remove, keep = say().pane.keepIt] = row.labels
+  return (
+    <Box flexDirection="column">
+      <Text wrap="truncate-end">{fit(rule.text, cells)}</Text>
+      <Text dimColor wrap="truncate-end">{fit(say().pane.staleWhy(rule.sessions), cells)}</Text>
+      <Box flexDirection="row" gap={row.gap}>
+        <Button key={`stale:${id}:remove`} plain onPress={() => actions.removeRule(id)}>{remove}</Button>
+        <Button key={`stale:${id}:keep`} plain dimColor onPress={() => actions.keepRule(id)}>{keep}</Button>
+      </Box>
+    </Box>
+  )
+}
+
 /** The footer: the decisions and the proposed rules, one row each; one count line when compact. */
 const footerSection = (
   ui: Ui,
@@ -834,7 +968,8 @@ const footerSection = (
   isCompact: boolean,
 ): RenderElement | null => {
   const { Box, Text } = ui
-  if (model.decided.length === 0 && model.artifacts.length === 0) return null
+  if (model.decided.length === 0 && model.artifacts.length === 0 && model.stale.length === 0) return null
+  const isOpen = (a: Artifact): boolean => model.preview !== null && model.preview.patternId === a.patternId && model.preview.kind === a.kind
   return (
     <Box flexDirection="column" paddingX={1 + HEAD_INDENT}>
       {isCompact
@@ -857,7 +992,17 @@ const footerSection = (
             : [
               blank(ui),
               <Text dimColor wrap="truncate-end">{fit(say().pane.rules, cells)}</Text>,
-              ...model.artifacts.map(artifact => artifactRow(ui, artifact, actions, cells)),
+              ...model.artifacts.flatMap(artifact => [
+                artifactRow(ui, artifact, actions, cells),
+                ...(model.preview !== null && isOpen(artifact) ? [previewBlock(ui, model.preview, cells)] : []),
+              ]),
+            ]),
+          ...(model.stale.length === 0
+            ? []
+            : [
+              blank(ui),
+              <Text dimColor wrap="truncate-end">{fit(say().pane.staleTitle, cells)}</Text>,
+              ...model.stale.map(rule => staleRow(ui, rule, actions, cells)),
             ]),
         ]}
     </Box>
@@ -940,7 +1085,9 @@ const bandLines = (model: BandModel): BandSegment[][] => {
   if (model.state === 'saved') return [savedLine(model)]
   if (model.running !== null) return runningLines(model.running).map(text => [{ text, isDim: true }])
   // Before the first row there is nothing to count.
-  const quiet = model.calls === 0 ? say().band.watching : joined([say().band.watched(model.calls), say().band.quiet])
+  const quiet = model.calls === 0
+    ? say().band.watching
+    : joined([say().band.watched(model.calls), model.slowed === true ? say().band.slowed : say().band.quiet])
   return [[{ text: quiet, isDim: true }]]
 }
 

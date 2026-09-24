@@ -4,7 +4,7 @@
 
 **Catches what's bogging down your Claude Code session and lets you fix it in one click.**
 
-[![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-5769F7)](https://claude.com/claude-code) [![tests](https://img.shields.io/badge/tests-279%20passing-3fb950)](scripts/check.sh) [![dependencies](https://img.shields.io/badge/dependencies-0-3fb950)](#development) [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-5769F7)](https://claude.com/claude-code) [![tests](https://img.shields.io/badge/tests-371%20passing-3fb950)](scripts/check.sh) [![dependencies](https://img.shields.io/badge/dependencies-0-3fb950)](#development) [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 </div>
 
@@ -28,8 +28,12 @@ ContextManager spots those patterns as they compound and surfaces them while you
   permission rule, written only when you click `Write`.
 - **It reads in your language.** English, French, Spanish, German, Simplified Chinese and Japanese, picked
   from `/config` — the pane, the band, the replies, and the cards the audit writes, findings included.
-- **It never touches your work.** No tool denied, no output trimmed, no error hidden. If a hook throws,
-  your session carries on as if the plugin weren't there.
+- **It never touches your work unless you say so.** No tool denied, no output trimmed, no error hidden. With
+  the `apply` row of `/config` off — the default — no call is changed either. Turned on, only the commands of
+  cards you pressed Apply on are rewritten, each rewrite is announced to Claude, and running the original
+  again lets it through. If a hook throws, your session carries on as if the plugin weren't there.
+- **Rules stay honest.** `Write` shows what it would write before it writes it and refuses a rule the file
+  already has; a rule whose behaviour never came back, and was a one-off before, is offered for removal.
 
 ## Install
 
@@ -79,8 +83,41 @@ waiting for your next prompt.
 | `/manager fix <n>` | Send card `n`'s suggested fix. |
 | `/manager fix [n] <text>` | Send your own instruction instead. Without a number: the open card, else card 1. |
 | `/manager ignore <n>` | Drop card `n` for the rest of the session. |
+| `/manager apply <n>` | Fix card `n` and rewrite its calls from now on (needs the `apply` row of `/config`). |
+| `/manager report` | Write this session's report to `.claude/contextmanager/report-<date>.md`. |
+| `/manager stats` | What this project's sessions found, fixed, ignored and saved, and what the audit cost. |
+| `/manager unmute <id>` | Hear again a behaviour this project muted (ignored in three sessions). |
 | `/manager debug` | Print the session state: ledger, findings, decisions, what the audit cost, savings. |
 | `/manager reset` | Clear this session's ledger and decisions. Learned patterns survive. |
+
+### Settings
+
+Two more rows of `/config` → **ContextManager**, besides the language:
+
+| Row | What it does |
+|---|---|
+| **Sensitivity** | `quiet` waits for twice the work between audits, needs one more occurrence before the code names a behaviour and keeps at most three findings per audit; `verbose` checks twice as often and names a behaviour one occurrence sooner. `normal` is the default. |
+| **Apply** | Off by default. On, a card whose behaviour has a rewrite offers `Apply` beside `Fix`: the whole test suite after a one-file edit runs that file's tests instead (and the whole suite every third run), a whole log read keeps its last 300 lines. Two failed rewrites — Claude running the original right after — stop it for the session. |
+
+### The Session row
+
+Three rows under the header state the session's facts, each in a few characters and wrapped over as many lines
+as the pane needs:
+
+```
+Session      opus-5-5 · 32% · 1h36 · 46% · $6.65
+Information  24/09 12:15 · CPU 21% · RAM 68% · v2.1.281
+Repo         ⎇ add-context-manager · +1679 −132
+```
+
+**Session** is the model (and its effort, and the last skill loaded, when known), the 5-hour quota used, the time
+left before that window resets, the weekly quota used and what the session has cost; **Information** the date
+and time, the machine's CPU and RAM and the Claude Code version; **Repo** the git branch and the lines added
+and removed. Each has its own row in
+`/config` to switch it off, and **Seconds between two readings of the session row** (30 by default, at least 5)
+sets how often git, the quotas, the cost and the machine are re-read — only while the pane is open. Reading the
+machine starts a process (PowerShell on Windows, `top` on macOS; `/proc` on Linux), which is why it is not
+read more often than that.
 
 ### Language
 
@@ -122,6 +159,7 @@ Then replay a real session through it, which beats waiting for a finding to turn
 ```sh
 bun run scripts/replay.ts <session-id> --prompt --lang ja | tail -8   # what the audit is asked
 bun run scripts/replay.ts <session-id> --judge  --lang ja             # what it answers
+bun run scripts/replay.ts <session-id> --detect --lang ja             # what the code finds, no model
 ```
 
 The layout is measured in terminal cells rather than in characters, so a script whose characters are two
@@ -138,6 +176,25 @@ minutes inside a long turn — a background fork of your session's model reads t
 ledger, then asks: what has repeated and bogged things down, where did the time and context actually go,
 and was there a shorter path to the same result? Whatever it finds becomes a card, with the costs
 computed from the ledger rather than guessed by the model.
+
+Some patterns need no model at all. After every call, plain code checks the ledger for four of them: the
+same file read three times with nothing changed in between, the whole test suite run after every one-file
+edit, the same search repeated with no edit between, the same whole log dumped twice, and subagents re-reading
+files the main session had already read before spawning them. It also watches
+each step's model and effort: switching either mid-session rewrites the whole prompt cache, and two switches
+make a card whose cost is measured on the step that followed each one. These cards cost nothing to find,
+and the judge is told to leave them alone.
+
+Two more rows sit under Time and Context. **Prefix** is what every request re-reads before the conversation
+— the system prompt, the tools, the MCP schemas, the memory files — in the engine's own tokens, largest part
+first. **Compaction** appears once one has happened: when, and which sinks had filled the window since the one
+before, as shares.
+
+Each project keeps a history, one small JSON file under `~/.claude/contextmanager/history/`: what every
+session saw, decided and saved. A behaviour you ignored in three sessions of a project goes quiet there — still
+counted, never carded — until `/manager unmute` brings it back. The pane shows what the audit cost beside
+what it saved, each in its own unit, and three checks in a row that find nothing slow the audit to its
+floor until it finds something again or you press Check now.
 
 `Fix` and `Fix…` send instructions; they never block a tool. The text arrives on Claude's next tool
 result and is attached to every later prompt for the rest of the session.

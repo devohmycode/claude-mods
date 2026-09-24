@@ -36,6 +36,7 @@ export const ZH_CN: PartialTexts = {
     time: '时间',
     context: '上下文',
     timeLead: '在工具中',
+    timeUnmeasured: '未测量',
     contextLead: '来自工具',
     nothingYet: '暂无明显问题',
 
@@ -130,10 +131,10 @@ export const ZH_CN: PartialTexts = {
   },
 
   command: {
-    description: 'ContextManager：显示或隐藏面板 · check | fix [n] [文本] | ignore <n> | debug | reset',
-    argumentHint: '[check | fix [n] [文本] | ignore <n> | debug | reset]',
+    description: 'ContextManager：显示或隐藏面板 · check | fix [n] [文本] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset',
+    argumentHint: '[check | fix [n] [文本] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]',
 
-    usage: '用法：/manager [check | fix [n] [文本] | ignore <n> | debug | reset]',
+    usage: '用法：/manager [check | fix [n] [文本] | ignore <n> | apply <n> | report | stats | unmute <id> | debug | reset]',
     fixUsage: '用法：/manager fix [n] [指令]（开头的数字指面板编号的卡片；不带数字时取修正…输入框已打开的卡片，否则取第 1 张）',
     paneShown: 'ContextManager 面板已显示',
     paneHidden: 'ContextManager 面板已隐藏',
@@ -188,6 +189,32 @@ Everything a machine matches is never translated and stays exactly as specified 
     kindPrefix: 'Claude 反复',
     instruction: text => `用户指令（经由 ContextManager）：${text}`,
     kill: (kind, alternative) => `本次会话剩余时间内停止此行为：${kind}。从现在起：${alternative}`,
+  },
+
+  detect: {
+    rereadKind: path => `Claude 反复读取 ${path}，而其间文件没有任何变化`,
+    rereadWhy: times => `读取了 ${times} 次，两次读取之间没有任何可能改动该文件的编辑、安装或格式化。`,
+    rereadFix: path => `沿用你已读到的 ${path} 内容；只在它变化后再读，而且只读需要的行。`,
+    fullSuiteKind: command => `Claude 反复在只改一个文件后运行整个 \`${command}\` 测试套件`,
+    fullSuiteWhy: times => `完整运行了 ${times} 次，每次都紧跟在只改一个文件之后；首次运行和提交前的那次不计在内。`,
+    fullSuiteFix: '只运行覆盖所改文件的测试，阶段结束时再完整运行一次测试套件。',
+    fullSuiteRuleTitle: '定向测试',
+    fullSuiteRule: '只运行覆盖所改文件的测试；每个阶段结束时完整运行一次测试套件。',
+    sameSearchKind: search => `Claude 反复执行同一个搜索：${search}`,
+    sameSearchWhy: times => `相同的搜索执行了 ${times} 次，其间没有任何编辑，每次找到的都和上一次一样。`,
+    sameSearchFix: '复用已经做过的搜索结果；只在文件变化后再搜索。',
+    logDumpKind: command => `Claude 反复用 \`${command}\` 输出整份日志`,
+    logDumpWhy: (times, chars) => `运行了 ${times} 次，每次至少 ${chars} 个字符，整份读取而没有过滤。`,
+    logDumpFix: "读日志前先过滤：用 grep -nE 'ERROR|FAIL|Traceback' 和 tail -n 50 处理。",
+    logDumpRuleTitle: '过滤日志',
+    logDumpRule: "读日志前先过滤（grep -nE 'ERROR|FAIL|Traceback'，tail -n 50）；不要读取整份日志。",
+    prefixKind: {
+      model: 'Claude 反复在会话中途切换模型，每次切换都会重写提示缓存',
+      effort: 'Claude 反复在会话中途切换 effort 级别，每次切换都会重写提示缓存',
+    },
+    prefixWhy: (times, turns, tokens) =>
+      `切换了 ${times} 次（第 ${turns} 轮）${tokens === null ? '' : `；紧随其后的步骤比普通步骤多写入缓存约 ${tokens} 个 token`}。`,
+    prefixFix: '本次会话剩余时间内保持同一个模型和同一个 effort 级别；在会话之间或 /compact 之后再切换。',
   },
 
   config: {
