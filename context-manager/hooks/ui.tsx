@@ -484,7 +484,11 @@ const headerSection = (
   const budgets = isCompact
     ? []
     : [
-      ...(header.time === null ? [] : [{ label: say().pane.time, figure: `${span(header.time.total)} ${say().pane.timeLead}`, sentence: header.judgeTime }]),
+      ...(header.time === null ? [] : [{
+        label: say().pane.time,
+        figure: header.timeUnmeasured ? say().pane.timeUnmeasured : `${span(header.time.total)} ${say().pane.timeLead}`,
+        sentence: header.judgeTime,
+      }]),
       ...(header.context === null ? [] : [{ label: say().pane.context, figure: `${kilo(header.context.total)} ${say().pane.contextLead}`, sentence: header.judgeContext }]),
     ]
   // The session's facts first, above what the ledger measured: they are what a glance comes for. One row each

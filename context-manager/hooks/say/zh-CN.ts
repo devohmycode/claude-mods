@@ -36,6 +36,7 @@ export const ZH_CN: PartialTexts = {
     time: '时间',
     context: '上下文',
     timeLead: '在工具中',
+    timeUnmeasured: '未测量',
     contextLead: '来自工具',
     nothingYet: '暂无明显问题',
 

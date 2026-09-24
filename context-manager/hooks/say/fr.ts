@@ -41,6 +41,7 @@ export const FR: PartialTexts = {
     time: 'Temps',
     context: 'Contexte',
     timeLead: 'dans les outils',
+    timeUnmeasured: 'non mesuré',
     session: 'Session',
     machine: 'Information',
     repo: 'Repo',

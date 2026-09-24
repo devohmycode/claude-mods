@@ -38,6 +38,7 @@ export const JA: PartialTexts = {
     time: '時間',
     context: '文脈',
     timeLead: 'ツール内',
+    timeUnmeasured: '未計測',
     contextLead: 'ツール由来',
     nothingYet: 'まだ目立つものはありません',
 

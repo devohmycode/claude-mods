@@ -49,6 +49,7 @@ export const PREFIX_MIN_BREAKS = 2            // model or effort switches before
 export const PREFIX_SAMPLES = 50              // steady steps whose cache writes the median of a normal step is read from
 export const PREFIX_BREAKS_CAP = 50           // breaks kept (oldest dropped)
 export const HISTORY_SESSIONS = 50            // sessions the project's history file keeps (oldest rewritten away)
+export const TIMING_SESSIONS = 4              // sessions the project's timing file keeps, newest first: the ones that may share a project at once
 export const MUTE_SESSIONS = 3                // sessions a behaviour must have been ignored in before it goes quiet in a project
 export const DEAD_RULE_SESSIONS = 10          // sessions after a rule was written, none of them seeing its behaviour, before the rule is offered for removal
 export const PREVIEW_LINES = 4                // lines of an artifact's text the Write preview quotes
@@ -309,6 +310,7 @@ export type Header = {
   turnsRange: { low: number; high: number } | null   // the same run at the fast and the slow quartile of the last TREND_TURNS turns' growth; null when too few turns grew or both ends agree
   trend: readonly number[]          // context percent after each of the last TREND_TURNS turns, oldest first; [] before the first
   time: Sinks | null                // where the wall-clock went, from the ledger; null before the first row
+  timeUnmeasured: boolean           // no row carries a measured duration: every one was rebuilt from a transcript, so the time is unknown, not 0s
   context: Sinks | null             // where the context went, from the ledger; null before the first row
   judgeTime: string | null          // the judge's one-line explanation of the time, verbatim; null until it has run
   judgeContext: string | null       // the judge's one-line explanation of the context

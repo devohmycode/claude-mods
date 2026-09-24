@@ -603,6 +603,11 @@ describe('ui', () => {
     expect(holds(quiet, '3h 12m in tools · nothing stands out yet'), 'before the judge speaks the row says so').toEqual(true)
     expect(holds(quiet, 'Judge'), 'and a judge that has never run is no figure').toEqual(false)
 
+    // Rows rebuilt from a transcript carry no duration: the figure says so, and no 0s stands in for it.
+    const rebuilt = at(80, { ...twoWasters, header: { ...twoWasters.header, timeUnmeasured: true } })
+    expect(holds(rebuilt, 'not measured · the full proxy suite')).toEqual(true)
+    expect(holds(rebuilt, 'in tools')).toEqual(false)
+
     const narrowest = at(26)
     expect(holds(narrowest, gauge(64, PINCHED_GAUGE)), 'the trend goes and the gauge takes the row').toEqual(true)
     expect(holds(narrowest, TREND)).toEqual(false)

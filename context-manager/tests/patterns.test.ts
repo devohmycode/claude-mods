@@ -737,6 +737,7 @@ describe('patterns', () => {
       info: { session: [], machine: [], repo: [] },
       trend: [40, 46, 52, 58, 64],
       time: { total: 62_000, sinks: [{ label: 'tests', amount: 60_000, count: 1 }, { label: 'reads', amount: 2_000, count: 1 }] },
+      timeUnmeasured: false,
       context: { total: 49_000, sinks: [{ label: 'reads', amount: 40_000, count: 1 }, { label: 'tests', amount: 9_000, count: 1 }] },
       judgeTime: null, judgeContext: null,
       judgeRuns: 2, judgeTokens: 600, judgeShare: 1.2, judgeRunning: true, savedPct: 4.5, savedMs: 192_000,

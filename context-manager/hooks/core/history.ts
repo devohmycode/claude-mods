@@ -112,18 +112,28 @@ export const staleRules = (history: History, marked: readonly { patternId: strin
   })
 
 /**
- * Where a project's history lives: one file per working directory, named after the directory so a person can
- * find it, and tagged with a hash so two directories whose names fold to the same slug never share one.
+ * Where a project's file of one kind lives: one file per working directory, named after the directory so a
+ * person can find it, and tagged with a hash so two directories whose names fold to the same slug never share one.
+ *
+ * @param home the home directory
+ * @param cwd the project's working directory
+ * @param dir the kind of file: `history`, `timing`
+ * @returns `<home>/.claude/contextmanager/<dir>/<slug>-<hash>.json`, forward slashes
+ */
+export const projectFile = (home: string, cwd: string, dir: string): string => {
+  const posix = cwd.replaceAll('\\', '/').replace(/\/+$/, '')
+  const slug = posix.replace(/^[A-Za-z]:/, '').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-60) || 'root'
+  return `${home.replaceAll('\\', '/').replace(/\/+$/, '')}/.claude/contextmanager/${dir}/${slug}-${hashOf(posix.toLowerCase())}.json`
+}
+
+/**
+ * Where a project's history lives.
  *
  * @param home the home directory
  * @param cwd the project's working directory
  * @returns `<home>/.claude/contextmanager/history/<slug>-<hash>.json`, forward slashes
  */
-export const historyPath = (home: string, cwd: string): string => {
-  const posix = cwd.replaceAll('\\', '/').replace(/\/+$/, '')
-  const slug = posix.replace(/^[A-Za-z]:/, '').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-60) || 'root'
-  return `${home.replaceAll('\\', '/').replace(/\/+$/, '')}/.claude/contextmanager/history/${slug}-${hashOf(posix.toLowerCase())}.json`
-}
+export const historyPath = (home: string, cwd: string): string => projectFile(home, cwd, 'history')
 
 /**
  * This session as the history keeps it: every pattern it cited, decided or was credited for.

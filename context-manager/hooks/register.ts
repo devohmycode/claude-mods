@@ -20,8 +20,10 @@ import { bandModel, debugDump, fromStored, mergeStored, paneModel, parseRegistry
 import { appendedTo, bulletOnly, markedRules, mergeSettings, previewOf, propose, ruleText, withoutRule } from './core/rules'
 import { activeRuns, agentOf, journalPath, parseJournal, runOf } from './core/spawns'
 import { collapseWs, duration, fit, instructionOf, pctOf } from './core/text'
+import { auditedLately, measured, parseTiming, timedOf, timingPath, untimed, withTimed } from './core/timing'
+import type { Timed } from './core/timing'
 import {
-  AUTO_OPEN_MIN_COLUMNS, CLAUDE_MD_HEADING, COMMAND, DEBUG_MAX_DROPPED, JUDGE_MIN_ROWS, MAX_PATTERNS, PANE_ID,
+  AUTO_OPEN_MIN_COLUMNS, CLAUDE_MD_HEADING, COMMAND, DEBUG_MAX_DROPPED, JUDGE_MIN_ROWS, MAIN_AGENT, MAX_PATTERNS, PANE_ID,
   APPLIED_FLAG, APPLY_WATCH_CALLS, PANE_INLINE_ROWS, PANE_TITLE, PLUGIN_NAME, RUN_REFRESH_MS, SENSITIVITIES, STEER_RING_TRIES, STEER_RING_WAIT_MS,
   initialState,
 } from './core/types'
@@ -99,6 +101,12 @@ export function register(on: On, options: PluginOptions = {}): void {
   let sessionAt = 0
   let resets = 0
   let lastWritten = ''
+  // What this session measured, kept on disk so a reload gives the rebuilt rows their durations back: the file
+  // (null without a home directory), this session's entry, the write in flight, and whether another is owed.
+  let timingFile: string | null = null
+  let timed: Timed = untimed('')
+  let timingWrite: Promise<void> | null = null
+  let timingOwed = false
 
   const messageOf = (err: unknown): string => (err instanceof Error ? err.message : String(err))
 
@@ -162,6 +170,30 @@ export function register(on: On, options: PluginOptions = {}): void {
     lastWritten = text
     // The store keeps the pointer and two counters; the detail is the file's.
     await engine.storeSet(`history:${state.cwd}`, { file, sessions: history.sessions.length, lastWrittenAt: sessionAt })
+  }
+
+  // This session's timing entry, written back into the project's file. Never awaited from a hook, and one write at
+  // a time: calls land faster than a file is written, so what they ask for while one is in flight becomes one more
+  // write after it. The file is read again before each write, since another session of the project keeps its own
+  // entry there.
+  const saveTiming = (): void => {
+    const engine = host
+    const file = timingFile
+    if (engine === null || file === null) return
+    timingOwed = true
+    if (timingWrite !== null) return
+    const drain = async (): Promise<void> => {
+      while (timingOwed) {
+        timingOwed = false
+        const onDisk = parseTiming((await engine.exists(file)) ? await engine.readFile(file) : null)
+        await engine.writeFile(file, JSON.stringify(withTimed(onDisk, timed)))
+      }
+    }
+    timingWrite = drain()
+      .catch(() => undefined)
+      .finally(() => {
+        timingWrite = null
+      })
   }
 
   // The history as `/manager stats` reads it: the file's sessions, this one included as it stands now.
@@ -286,6 +318,9 @@ export function register(on: On, options: PluginOptions = {}): void {
     const seq = state.seq
     const now = await engine.now()
     dispatch({ type: 'judge.start', now, seq })
+    // When the session was last audited is what a reload reads, so a save under `--plugin-dir` forks nothing new.
+    timed = { ...timed, judgedAt: now }
+    saveTiming()
     // AGENTS is read off the journals, so they are brought up to date once, here, before the prompt is built.
     await refreshRuns(true).catch(() => undefined)
     // One alias table for the run: the loops keep spawning while the fork thinks, and a new agent's first
@@ -792,9 +827,18 @@ export function register(on: On, options: PluginOptions = {}): void {
       lastWritten = ''
       history = EMPTY_HISTORY
       historyFile = null
+      timingFile = null
+      timed = untimed(sessionKey)
+      // This session's entry as the file had it before this load: present only where this plugin measured the
+      // session already, so a load that finds one is a reload, never a late join.
+      let before: Timed | undefined
       try {
         const home = await engine.home()
         if (home !== undefined && home !== '') {
+          const clock = timingPath(home, e.cwd)
+          before = timedOf(parseTiming((await engine.exists(clock)) ? await engine.readFile(clock) : null), sessionKey)
+          timed = before ?? timed
+          timingFile = clock
           const file = historyPath(home, e.cwd)
           history = parseHistory((await engine.exists(file)) ? await engine.readFile(file) : null)
           historyFile = file
@@ -843,7 +887,7 @@ export function register(on: On, options: PluginOptions = {}): void {
         isDebug = false
       }
       // Last, so a transcript we cannot read costs the session nothing it already has.
-      const adopted = adoptRows(await engine.messages())
+      const adopted = adoptRows(await engine.messages(), timed.ms)
       if (adopted.length === 0) return next(e)
       dispatch({ type: 'adopt', rows: adopted })
       detectNow()
@@ -855,6 +899,13 @@ export function register(on: On, options: PluginOptions = {}): void {
         engine.log(`ContextManager adopted ${adopted.length} rows from the transcript · ${tail}`)
       }
       if (!enough) return next(e)
+      // A reload close behind an audit is the same history judged again: in the `--plugin-dir` loop every save
+      // reloads, and each would pay for a fork. Past the gap it audits as a late join does, since the cards the
+      // last run drew went with the old state.
+      if (auditedLately(before, now)) {
+        if (isDebug) engine.log(`ContextManager reloaded ${duration(now - (before?.judgedAt ?? now))} after an audit · nothing to check`)
+        return next(e)
+      }
       dispatch({ type: 'check.arm' })
       if (isDebug) engine.log(`ContextManager fired a check over ${state.rows.length} adopted rows · armed, so a cold answer retries`)
       // Fired here, not left for the person's next keystroke: a session with this much history behind it has
@@ -907,6 +958,11 @@ export function register(on: On, options: PluginOptions = {}): void {
       dispatch({ type: 'row', row: note === null ? row : { ...row, flags: [...row.flags, APPLIED_FLAG] } })
       const landed = state.rows[state.rows.length - 1]
       if (isDebug && landed !== undefined) engine.log(`ContextManager row r${landed.seq} ${landed.tool} ${landed.key} ${landed.ms}ms ${landed.chars}ch`)
+      // Only the main loop's calls: the transcript a reload rebuilds from holds no other.
+      if (timingFile !== null && landed !== undefined && landed.agent === MAIN_AGENT) {
+        timed = measured(timed, landed.id, landed.ms)
+        saveTiming()
+      }
       // A `Workflow` result is a run launched, an `Agent` result a loop named; a launch reads its journal at
       // once, and any run still going is re-read on the plugin's own cadence — detached, the call is answered.
       const run = runOf(result.result)

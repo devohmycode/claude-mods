@@ -72,10 +72,12 @@ describe('the project\'s history, in a session', () => {
     expect(written.sessions.map(s => s.id), 'the session is keyed by when it started').toEqual(['s0'])
     expect(world.store[`history:${SESSION.cwd}`]).toMatchObject({ sessions: 1 })
 
-    const writes = fs.writes.length
+    // The timing file takes each call's duration; the history is what a turn that changed nothing leaves alone.
+    const historyWrites = (): number => fs.writes.filter(path => path === FILE).length
+    const writes = historyWrites()
     await turn($, 2)
     await world.clock.settle()
-    expect(fs.writes.length, 'nothing new to keep').toBe(writes)
+    expect(historyWrites(), 'nothing new to keep').toBe(writes)
   })
 
   test('/manager stats reads the project, this session included; unmute hears a behaviour again', async ($, on) => {

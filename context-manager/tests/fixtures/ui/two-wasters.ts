@@ -23,6 +23,7 @@ export const twoWasters: PaneModel = {
         { label: 'git', amount: 240_000, count: 1 },
       ],
     },
+    timeUnmeasured: false,
     context: {
       total: 410_000,
       sinks: [

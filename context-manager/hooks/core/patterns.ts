@@ -8,7 +8,7 @@ import { collapseWs, duration, instructionOf, killPrompt, median, pctOf, quantil
 import {
   ALTERNATIVE_MAX, APPLY_MAX_FAILURES, CARD_EVIDENCE, DEBUG_MAX_DROPPED, DEBUG_MAX_LINES, DEBUG_MAX_PATTERNS, FILE_TOOLS,
   JUDGE_BUDGET_SHARE, JUDGE_EMPTY_RUNS, JUDGE_MAX_BACKOFF, KEY_MAX, KIND_MAX, LOOP_CAP, MAIN_AGENT, MAX_PATTERNS, NO_CALLS, PREFIX_BREAKS_CAP,
-  PREFIX_SAMPLES, ROW_CAP, SETTLE_TURNS, TREND_TURNS, initialState,
+  PREFIX_SAMPLES, RECOVERED_FLAG, ROW_CAP, SETTLE_TURNS, TREND_TURNS, initialState,
 } from './types'
 import type {
   Action, Artifact, BandModel, Card, Choice, CommandClass, CompactionReport, DecidedRow, Evidence, Header, JournalEntry, JudgeRun,
@@ -643,6 +643,7 @@ const headerOf = (state: State): Header => ({
   turnsRange: turnsRange(state),
   trend: trendOf(state),
   time: sinksOf(state, 'ms'),
+  timeUnmeasured: state.rows.length > 0 && state.rows.every(r => r.flags.includes(RECOVERED_FLAG)),
   context: sinksOf(state, 'chars'),
   judgeTime: state.judge.time,
   judgeContext: state.judge.context,

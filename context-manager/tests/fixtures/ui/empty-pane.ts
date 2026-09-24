@@ -12,6 +12,7 @@ export const emptyPane: PaneModel = {
     info: { session: [], machine: [], repo: [] },
     trend: [],
     time: null,
+    timeUnmeasured: false,
     context: null,
     judgeTime: null,
     judgeContext: null,

@@ -39,6 +39,7 @@ export const ES: PartialTexts = {
     time: 'Tiempo',
     context: 'Contexto',
     timeLead: 'en herramientas',
+    timeUnmeasured: 'sin medir',
     contextLead: 'de herramientas',
     nothingYet: 'nada destaca todavía',
 

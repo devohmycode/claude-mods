@@ -51,6 +51,8 @@ export type PaneTexts = {
   time: string
   context: string
   timeLead: string
+  /** The time row's figure when no call was timed: every row was rebuilt from the transcript, which records no duration. */
+  timeUnmeasured: string
   /** The prefix row: what every request re-reads before the conversation, in the engine's tokens. */
   prefix: string
   prefixLead: string
@@ -413,6 +415,7 @@ export const EN: Texts = {
     time: 'Time',
     context: 'Context',
     timeLead: 'in tools',
+    timeUnmeasured: 'not measured',
     session: 'Session',
     machine: 'Information',
     repo: 'Repo',
