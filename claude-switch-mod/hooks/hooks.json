@@ -1,0 +1,6 @@
+{
+  "description": "/switch: a pane of models and effort levels, each switched with one click",
+  "modules": [
+    "./register.ts"
+  ]
+}

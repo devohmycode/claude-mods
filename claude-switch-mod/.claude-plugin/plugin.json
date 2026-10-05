@@ -1,0 +1,12 @@
+{
+  "name": "switch",
+  "version": "0.1.0",
+  "description": "A pane of the models and the effort levels, each switched with one click. /switch opens it; /switch opus or /switch high switches without it. A click runs the engine's own /model or /effort, so the status line follows; the pane shows the model and the effort the last request was actually sent with.",
+  "author": {
+    "name": "DevOhMyCode"
+  },
+  "homepage": "https://github.com/devohmycode/claude-mods/tree/main/claude-switch-mod",
+  "repository": "https://github.com/devohmycode/claude-mods",
+  "license": "MIT",
+  "keywords": ["model", "effort", "pane", "switch", "function-hooks"]
+}
