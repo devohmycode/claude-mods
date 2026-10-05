@@ -95,6 +95,47 @@
         "function-hooks"
       ],
       "category": "productivity"
+    },
+    {
+      "name": "forge",
+      "source": "./claude-forge-mod",
+      "description": "Make your own plugins and mods, and catch what a mod breaks without a word: /forge new writes a mod or a classic plugin in this repository's shape, /forge lint reads the source for what the loader refuses or what fails silently, and /forge check adds tsc, validate --strict with its inventory compared to the source, and plugin test.",
+      "version": "0.1.0",
+      "author": {
+        "name": "DevOhMyCode"
+      },
+      "homepage": "https://github.com/devohmycode/claude-mods/tree/main/claude-forge-mod",
+      "repository": "https://github.com/devohmycode/claude-mods",
+      "license": "MIT",
+      "keywords": [
+        "plugin",
+        "mod",
+        "scaffold",
+        "lint",
+        "validate",
+        "function-hooks"
+      ],
+      "category": "development"
+    },
+    {
+      "name": "switch",
+      "source": "./claude-switch-mod",
+      "description": "A pane of the models and the effort levels, each switched with one click: /switch opens it, /switch opus or /switch high switches without it. A click runs the engine's own /model or /effort, so the status line follows.",
+      "version": "0.1.0",
+      "author": {
+        "name": "DevOhMyCode"
+      },
+      "homepage": "https://github.com/devohmycode/claude-mods/tree/main/claude-switch-mod",
+      "repository": "https://github.com/devohmycode/claude-mods",
+      "license": "MIT",
+      "keywords": [
+        "model",
+        "effort",
+        "pane",
+        "switch",
+        "function-hooks"
+      ],
+      "category": "productivity"
     }
   ]
 }

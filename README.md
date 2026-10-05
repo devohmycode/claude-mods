@@ -28,6 +28,16 @@ the shape `($, e, next)`.
   one click fixes, rewords or ignores each finding. Starts from
   ContextSaver 0.5.0, language choice included, as the base of its next
   version.
+- **[claude-forge-mod/](claude-forge-mod/)** — make your own plugins and
+  mods, and catch what a mod breaks without a word: `/forge new` writes a
+  mod (or a classic plugin) in this repository's shape, `/forge lint` reads
+  the source for what the loader refuses or what fails silently, and
+  `/forge check` adds `tsc`, `validate --strict` with its inventory compared
+  to the source, and `plugin test`.
+- **[claude-switch-mod/](claude-switch-mod/)** — a pane of the models and
+  the effort levels, each switched with one click: `/switch` opens it,
+  `/switch opus` or `/switch high` switches without it. A click runs the
+  engine's own `/model` or `/effort`, so the status line follows.
 
 ## Installing
 
@@ -43,6 +53,8 @@ From inside a Claude Code session:
 /plugin install message@claude-devohmycode-mods
 /plugin install clauget@claude-devohmycode-mods
 /plugin install contextmanager@claude-devohmycode-mods
+/plugin install forge@claude-devohmycode-mods
+/plugin install switch@claude-devohmycode-mods
 ```
 
 Or from the shell:
@@ -53,6 +65,8 @@ claude plugin install cockpit@claude-devohmycode-mods
 claude plugin install message@claude-devohmycode-mods
 claude plugin install clauget@claude-devohmycode-mods
 claude plugin install contextmanager@claude-devohmycode-mods
+claude plugin install forge@claude-devohmycode-mods
+claude plugin install switch@claude-devohmycode-mods
 ```
 
 Claude Code loads a hooks module only when
