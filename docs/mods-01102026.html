@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mods de la communauté</title>
+<meta name="description" content="Les mods Claude Code créés par les personnes qui ont mentionné l'issue anthropics/claude-code#91870, relevés le 1er octobre 2026.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#faf9f5; --surface:#ffffff; --surface-2:#f2efe6; --ink:#1f1e1a; --ink-2:#56534a; --ink-3:#8a867a;
+  --line:#e3dfd3; --accent:#c96442; --accent-soft:#f6e3da; --accent-ink:#9a4427;
+  --ok:#2f7d4f; --ok-soft:#e1f1e6; --warn:#a2650d; --warn-soft:#fbefd9; --info:#2d5f9a; --info-soft:#e1ebf7;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#181715; --surface:#201f1c; --surface-2:#2a2825; --ink:#ece8dc; --ink-2:#b9b4a6; --ink-3:#8a8579;
+    --line:#35332e; --accent:#e0825f; --accent-soft:#3a2820; --accent-ink:#f0a584;
+    --ok:#6cc08b; --ok-soft:#1f3326; --warn:#e3a94f; --warn-soft:#3a2d17; --info:#7eaee6; --info-soft:#1d2a3b;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#181715; --surface:#201f1c; --surface-2:#2a2825; --ink:#ece8dc; --ink-2:#b9b4a6; --ink-3:#8a8579;
+  --line:#35332e; --accent:#e0825f; --accent-soft:#3a2820; --accent-ink:#f0a584;
+  --ok:#6cc08b; --ok-soft:#1f3326; --warn:#e3a94f; --warn-soft:#3a2d17; --info:#7eaee6; --info-soft:#1d2a3b;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:16px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-decoration-thickness:1px;text-underline-offset:3px}
+code{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-size:.84em;background:var(--surface-2);border:1px solid var(--line);padding:.05em .35em;border-radius:5px}
+main{max-width:1080px;margin:0 auto;padding:40px 16px 80px}
+header.hero h1{font:700 2.3rem/1.15 "Source Serif 4",Georgia,serif;margin:0 0 12px}
+header.hero .lede{color:var(--ink-2);max-width:760px;margin:0 0 18px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.chip{font-size:13px;padding:3px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2)}
+.chip b{color:var(--ink);font-variant-numeric:tabular-nums}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:28px 0 8px}
+.bar input{flex:1 1 240px;font:inherit;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.bar button{font:inherit;font-size:13px;padding:7px 12px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:8px;cursor:pointer}
+.bar button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
+nav.jump{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;margin:6px 0 0}
+section{margin-top:44px}
+section h2{font:700 1.5rem/1.2 "Source Serif 4",Georgia,serif;margin:0 0 6px;display:flex;align-items:baseline;gap:10px}
+section h2 .n{font:600 13px Inter,sans-serif;color:var(--ink-3)}
+section > p.intro{color:var(--ink-2);margin:0 0 16px;max-width:780px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card h3{margin:0;font-size:1.02rem;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.card h3 a{text-decoration:none;overflow-wrap:anywhere}
+.card h3 a:hover{text-decoration:underline}
+.card .who{font-size:13px;color:var(--ink-3)}
+.card .who a{color:var(--ink-2)}
+.card p{margin:0;font-size:14.5px;color:var(--ink-2)}
+.card .foot{margin-top:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--ink-3);padding-top:6px}
+.tag{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--info-soft);color:var(--info);white-space:nowrap}
+.st{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.st.ok{background:var(--ok-soft);color:var(--ok)}
+.st.warn{background:var(--warn-soft);color:var(--warn)}
+.st.mute{background:var(--surface-2);color:var(--ink-3);border:1px solid var(--line)}
+.card .src{margin-left:auto}
+.hidden{display:none!important}
+footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);font-size:13.5px;color:var(--ink-3)}
+footer ul{padding-left:18px;margin:8px 0}
+@media (max-width:560px){ header.hero h1{font-size:1.8rem} .grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<main>
+<header class="hero">
+  <h1>Mods de la communauté autour de #91870</h1>
+  <p class="lede">Les mods Claude Code (plugins de <em>function hooks</em>) créés par les personnes qui ont commenté ou référencé l'issue
+  <a href="https://github.com/anthropics/claude-code/issues/91870">anthropics/claude-code#91870</a> — « Mods: make Claude 10x more extensible ».
+  Relevé le 1<sup>er</sup> octobre 2026 à partir de la chronologie de l'issue (commentaires et références croisées).</p>
+  <div class="meta">
+    <span class="chip"><b>225</b> commentaires lus</span>
+    <span class="chip"><b>62</b> références croisées</span>
+    <span class="chip"><b id="c-a">0</b> mods annoncés en commentaire</span>
+    <span class="chip"><b id="c-b">0</b> mods livrés par PR / issue liée</span>
+    <span class="chip"><b id="c-c">0</b> prototypes &amp; catalogues</span>
+  </div>
+  <nav class="jump">
+    <a href="#commentaires">Annoncés en commentaire</a>
+    <a href="#references">Livrés par PR / issue liée</a>
+    <a href="#outils">Prototypes &amp; catalogues</a>
+    <a href="#autres">Mentionnés, pas (encore) des mods</a>
+  </nav>
+  <div class="bar">
+    <input id="q" type="search" placeholder="Filtrer : auteur, nom, thème, API…" aria-label="Filtrer">
+    <button data-t="all" aria-pressed="true">Tout</button>
+    <button data-t="Contexte">Contexte</button>
+    <button data-t="Observabilité">Observabilité</button>
+    <button data-t="Orchestration">Orchestration</button>
+    <button data-t="Sécurité">Sécurité</button>
+    <button data-t="Interface">Interface</button>
+    <button data-t="Jeux">Jeux &amp; ambiance</button>
+  </div>
+</header>
+
+<section id="commentaires">
+  <h2>Mods annoncés dans les commentaires <span class="n" id="n-a"></span></h2>
+  <p class="intro">L'auteur ou l'autrice du commentaire présente un mod qu'il ou elle a construit sur les function hooks, avec un lien vers le dépôt.</p>
+  <div class="grid" data-group="a">
+
+    <article class="card" data-t="Jeux">
+      <h3><a href="https://github.com/sezaakgun/cc-arcade">cc-arcade</a></h3>
+      <div class="who">par <a href="https://github.com/sezaakgun">@sezaakgun</a></div>
+      <p>Tetris et sept autres jeux au-dessus du prompt, jouables pendant que Claude travaille, zéro token. Présenté comme la première surface interactive dessinée avec les function hooks.</p>
+      <div class="foot"><span class="tag">Jeux</span><code>ui.render AbovePrompt</code><code>$.store</code><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5666255143">14 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Jeux">
+      <h3><a href="https://github.com/sezaakgun/cc-arcade/pull/1">Doom pour cc-arcade</a></h3>
+      <div class="who">par <a href="https://github.com/nateschickler0">@nateschickler0</a></div>
+      <p>Le Doom de 1993 joué au-dessus du prompt, en PR sur cc-arcade. Documente deux limites : 2 000 nœuds / 100 000 caractères par instance <code>Client</code>, et pas de <code>WebAssembly</code>.</p>
+      <div class="foot"><span class="tag">Jeux</span><code>Client</code><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5672771949">15 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Observabilité">
+      <h3><a href="https://github.com/Arunjay4213/claude-mods">claude-mods</a> <span class="st mute">3 mods</span></h3>
+      <div class="who">par <a href="https://github.com/Arunjay4213">@Arunjay4213</a></div>
+      <p><b>context-lens</b> (un <code>/context</code> en direct : remplissage, croissance par tour, tours restants avant compaction), <b>quota-meter</b> (fenêtres 5 h et 7 jours, compte à rebours, projection) et <b>token-ledger</b> (coût de chaque tour).</p>
+      <div class="foot"><span class="tag">Observabilité</span><code>$.clock.every</code><code>$.store</code><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5669755348">14 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Jeux">
+      <h3><a href="https://github.com/halluton/Mindful-Claude">Mindful-Claude</a></h3>
+      <div class="who">par <a href="https://github.com/halluton">@halluton</a></div>
+      <p>Fait respirer pendant que Claude travaille : un bandeau apparaît au début du tour, le spinner compte la respiration, tout disparaît à la fin. Zéro token.</p>
+      <div class="foot"><span class="tag">Jeux</span><code>AbovePrompt</code><code>Spinner</code><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5672483995">14 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Jeux">
+      <h3><a href="https://github.com/maddiedreese/cc-storytime">cc-storytime</a></h3>
+      <div class="who">par <a href="https://github.com/maddiedreese">@maddiedreese</a></div>
+      <p>Un transformer TinyStories de 260 K paramètres exécuté dans le module de hooks ; il écrit au-dessus du prompt une histoire sur ce que fait Claude. Chaque token est généré localement en TypeScript.</p>
+      <div class="foot"><span class="tag">Jeux</span><code>AbovePrompt</code><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5673475485">15 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Interface">
+      <h3><a href="https://github.com/rjwittams/katzensteg/tree/main/tools/claude-code-plugin">Katzensteg plugin</a></h3>
+      <div class="who">par <a href="https://github.com/rjwittams">@rjwittams</a></div>
+      <p>Intègre des programmes SDL arbitraires dans le terminal (placements virtuels kitty graphics, placeholders Unicode). Fable y joue à des jeux via les commandes d'entrée.</p>
+      <div class="foot"><span class="tag">Interface</span><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5685165223">15 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Orchestration">
+      <h3><a href="https://github.com/mpolatcan/flowpane">flowpane</a></h3>
+      <div class="who">par <a href="https://github.com/mpolatcan">@mpolatcan</a></div>
+      <p>Remplace la liste de progression des Workflows par un dessin vivant du run : une colonne par phase, un nœud par agent, les barrières en arêtes, et le prompt / les appels / la réponse de chaque agent en dialogue.</p>
+      <div class="foot"><span class="tag">Orchestration</span><code>Pane</code><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5685168776">15 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Interface">
+      <h3><a href="https://github.com/meganemura/pull-request-pane">pull-request-pane</a></h3>
+      <div class="who">par <a href="https://github.com/meganemura">@meganemura</a></div>
+      <p>Liste des PR et issues GitHub à côté du transcript, avec sélection de texte à la souris pour l'attacher au prompt.</p>
+      <div class="foot"><span class="tag">Interface</span><code>Pane</code><code>Client</code><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5690203688">16 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Interface">
+      <h3><a href="https://github.com/zenbu-labs/terminal-browser/tree/main/claude-code-plugin">terminal-browser plugin</a></h3>
+      <div class="who">par <a href="https://github.com/RobPruzan">@RobPruzan</a></div>
+      <p>Un navigateur web dans Claude Code, bâti sur terminal-browser. Le README documente les écarts avec l'exécution directe depuis un shell.</p>
+      <div class="foot"><span class="tag">Interface</span><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5711217633">17 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Interface">
+      <h3><a href="https://github.com/faridmurzone/command-buttons-claude-code">command-buttons</a></h3>
+      <div class="who">par <a href="https://github.com/Faridmurzone">@Faridmurzone</a></div>
+      <p>Boutons <b>[ ▶ Run ]</b> et <b>[ ⧉ Copy ]</b> sur les commandes des réponses, raccourcis 1-9 / a-i dans le bandeau, sortie en ligne et confirmation.</p>
+      <div class="foot"><span class="tag">Interface</span><code>AbovePrompt</code><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5714446174">17 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Contexte">
+      <h3><a href="https://github.com/karanb192/claude-code-mods/tree/main/plugins/cache-tax">cache-tax</a></h3>
+      <div class="who">par <a href="https://github.com/karanb192">@karanb192</a></div>
+      <p>Garde une session inactive au chaud sans ajouter de message : <code>/keepwarm</code> arme six heures de pings après 50 min d'inactivité, grâce au préfixe en cache que réutilise <code>$.model.fork</code>.</p>
+      <div class="foot"><span class="tag">Contexte</span><code>$.model.fork</code><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5715941633">17 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Contexte">
+      <h3><a href="https://github.com/AlmogBaku/ContextSaver">ContextSaver</a></h3>
+      <div class="who">par <a href="https://github.com/AlmogBaku">@AlmogBaku</a></div>
+      <p>Évaluateur « méta » qui repère le <i>Session Creep</i> (ex. une suite e2e complète relancée à chaque étape) et propose de corriger le comportement ou de donner une consigne.</p>
+      <div class="foot"><span class="tag">Contexte</span><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5721846986">17 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Orchestration">
+      <h3><a href="https://github.com/FazalAAli/pi-agent-for-claude">pi-agent-for-claude</a></h3>
+      <div class="who">par <a href="https://github.com/FazalAAli">@FazalAAli</a></div>
+      <p>Fait tourner l'agent <a href="https://pi.dev">pi</a> comme sous-agent natif : un type <code>pi</code> dont le <code>turn.step</code> lance <code>pi --mode json</code>. Visible dans <code>$.agent.list()</code>, utilisable en agent-team.</p>
+      <div class="foot"><span class="tag">Orchestration</span><code>turn.step</code><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5725437710">18 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Sécurité">
+      <h3><a href="https://github.com/tre-dev/claude-env">claude-env</a></h3>
+      <div class="who">par <a href="https://github.com/tre-dev">@tre-dev</a></div>
+      <p>Ajouter et gérer des variables d'environnement (secrets compris) directement dans Claude Code, proposé comme point de départ d'un mod intégré.</p>
+      <div class="foot"><span class="tag">Sécurité</span><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5817031505">24 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Sécurité">
+      <h3><a href="https://github.com/lperezmo/topic-filter-mod">topic-filter</a></h3>
+      <div class="who">par <a href="https://github.com/lperezmo">@lperezmo</a></div>
+      <p>Remplace des mots, sujets et dépôts choisis par des placeholders dans tout ce que lit le modèle. Il a fallu hooker dix événements faute d'un point unique sur la requête sortante.</p>
+      <div class="foot"><span class="tag">Sécurité</span><span class="st mute">2.1.282</span><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5827373997">25 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Contexte">
+      <h3><a href="https://github.com/rezzminator/sub-agent-compact">sub-agent-compact</a></h3>
+      <div class="who">par <a href="https://github.com/rezzminator">@rezzminator</a></div>
+      <p>Une politique de compaction propre à la session principale et à chaque sous-agent ; le modèle choisit son jalon et le focus du résumé. Demande à pouvoir compacter un sous-agent en cours de tour.</p>
+      <div class="foot"><span class="tag">Contexte</span><code>tool.call</code><code>session.compact</code><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5848066352">26 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Jeux">
+      <h3><a href="https://github.com/furqan-khan07/pixelband">pixelband</a></h3>
+      <div class="who">par <a href="https://github.com/furqan-khan07">@furqan-khan07</a></div>
+      <p>Pixel art animé au-dessus du prompt (sept scènes ou une image / un GIF à soi) qui réagit à l'activité de Claude et se réduit pendant les tours. Zéro token, menu <code>/pixelband</code>.</p>
+      <div class="foot"><span class="tag">Jeux</span><code>AbovePrompt</code><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5850001376">26 sept.</a></div>
+    </article>
+
+  </div>
+</section>
+
+<section id="references">
+  <h2>Mods livrés par une PR ou une issue qui cite #91870 <span class="n" id="n-b"></span></h2>
+  <p class="intro">Références croisées venues d'autres dépôts : la personne indiquée a ouvert la PR ou l'issue. Le statut est celui de cette PR / issue au 1<sup>er</sup> octobre ; une issue fermée ne prouve pas à elle seule que le mod a été livré.</p>
+  <div class="grid" data-group="b">
+
+    <article class="card" data-t="Jeux">
+      <h3><a href="https://github.com/davila7/claude-code-templates/pull/910">claude-code-templates — Mods</a></h3>
+      <div class="who">par <a href="https://github.com/davila7">@davila7</a></div>
+      <p>Une section « Function Hooks » (10 hooks, flag CLI, blog — <a href="https://github.com/davila7/claude-code-templates/pull/867">#867</a>), puis le passage aux Mods : disposition de plugin Anthropic, vrais types et 14 nouveaux mods de jeux.</p>
+      <div class="foot"><span class="tag">Jeux</span><span class="st ok">2 PR fusionnées</span><span class="src">4 &amp; 16 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Sécurité">
+      <h3><a href="https://github.com/pleaseai/honmoon/pull/90">honmoon</a></h3>
+      <div class="who">par <a href="https://github.com/amondnet">@amondnet</a></div>
+      <p>Module function hooks du plugin Honmoon : la rédaction des secrets tourne dans Claude Code lui-même, en <i>fail-closed</i>, et plus seulement à la passerelle.</p>
+      <div class="foot"><span class="tag">Sécurité</span><span class="st ok">PR fusionnée</span><span class="src">8 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Observabilité">
+      <h3><a href="https://github.com/pleaseai/shunt/pull/573">shunt</a></h3>
+      <div class="who">par <a href="https://github.com/amondnet">@amondnet</a></div>
+      <p>Un plugin dont tout le comportement vit dans un module de hooks : il répond à <code>/shunt:usage</code> en hookant <code>command.run</code>.</p>
+      <div class="foot"><span class="tag">Observabilité</span><span class="st ok">PR fusionnée</span><span class="src">16 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Orchestration">
+      <h3><a href="https://github.com/4ndreello/codedeck/pull/83">codedeck — pane orchestrateur</a></h3>
+      <div class="who">par <a href="https://github.com/4ndreello">@4ndreello</a></div>
+      <p>Remplace le mod « arcade » par une version ASCII du canevas <code>codedeck web</code>, dans un pane ancré à droite du terminal, pour suivre les agents de l'orchestrateur.</p>
+      <div class="foot"><span class="tag">Orchestration</span><code>Pane</code><span class="st ok">PR fusionnée</span><span class="src">15 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Jeux">
+      <h3><a href="https://github.com/aieo-product/kaneed-dungeon-claudemod">kaneed-dungeon-claudemod</a></h3>
+      <div class="who">par <a href="https://github.com/syn-otani">@syn-otani</a></div>
+      <p>Le héros « Kaneed » explore seul un donjon dans le bandeau au-dessus du prompt pendant que Claude réfléchit ; il ne se soigne qu'en montant de niveau ou quand Claude fait passer des tests.</p>
+      <div class="foot"><span class="tag">Jeux</span><code>AbovePrompt</code><span class="st ok">issues fermées</span><span class="src">15 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Interface">
+      <h3><a href="https://github.com/dex-it/claude-code-marketplace/pull/244">dex-it marketplace — trackers MR / PR</a></h3>
+      <div class="who">par <a href="https://github.com/yaryrslv">@yaryrslv</a></div>
+      <p>Le catalogue gagne une classe d'artefact « mod », avec deux mods prêts : un tracker de merge requests GitLab et un tracker de pull requests GitHub.</p>
+      <div class="foot"><span class="tag">Interface</span><span class="st ok">PR fusionnée</span><span class="src">15 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Orchestration">
+      <h3><a href="https://github.com/xtrm-dev/specialists/pull/405">specialists — fleet band</a></h3>
+      <div class="who">par <a href="https://github.com/Jaggerxtrm">@Jaggerxtrm</a></div>
+      <p>Suivi et contrôle en direct de la flotte de « specialists » lancée par la session, jumeau natif de la section de pied de page côté Pi.</p>
+      <div class="foot"><span class="tag">Orchestration</span><span class="st ok">PR fusionnée</span><span class="src">18 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Orchestration">
+      <h3><a href="https://github.com/kys0213/kys-claude-plugin/pull/903">atelier — dispatch guard</a></h3>
+      <div class="who">par <a href="https://github.com/kys0213">@kys0213</a></div>
+      <p>Les règles de dispatch de l'orchestrateur qui sont vérifiables de façon déterministe passent de la documentation à des avertissements émis par le moteur.</p>
+      <div class="foot"><span class="tag">Orchestration</span><span class="st ok">PR fusionnée</span><span class="src">28 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Contexte">
+      <h3><a href="https://github.com/alis-build/claude-plugin/pull/1">alis-build claude-plugin v0.28.0</a></h3>
+      <div class="who">par <a href="https://github.com/newtonnthiga">@newtonnthiga</a></div>
+      <p>Un module function hooks (accès anticipé) ajouté à côté des hooks shell existants du plugin.</p>
+      <div class="foot"><span class="tag">Contexte</span><span class="st ok">PR fusionnée</span><span class="src">18 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Sécurité">
+      <h3><a href="https://github.com/bannzai/SecChain/issues/70">SecChain mask</a></h3>
+      <div class="who">par <a href="https://github.com/bannzai">@bannzai</a></div>
+      <p>Seconde ligne de défense : masquer, dans le texte qui va au modèle, toute valeur égale à un secret du Keychain — là où le blocage <code>PreToolUse</code> ne suffit pas.</p>
+      <div class="foot"><span class="tag">Sécurité</span><span class="st mute">issue fermée</span><span class="src">27 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Sécurité">
+      <h3><a href="https://github.com/STylerawr/claude-dlp/issues/3">claude-dlp — approche Mods</a></h3>
+      <div class="who">par <a href="https://github.com/STylerawr">@STylerawr</a></div>
+      <p>Expérimentation : remplacer le blocage <code>PreToolUse</code> + fichiers temporaires masqués par un mod de prévention des fuites de données.</p>
+      <div class="foot"><span class="tag">Sécurité</span><span class="st mute">issue fermée</span><span class="src">22 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Orchestration">
+      <h3><a href="https://github.com/mmurakaru/cueloop/issues/478">cueloop — adaptateur Claude Mod</a></h3>
+      <div class="who">par <a href="https://github.com/mmurakaru">@mmurakaru</a></div>
+      <p>Remplacer l'adaptateur à base de command hooks par un mod obligatoire qui implémente le contrat de harness partagé pour les six workflows de cueloop.</p>
+      <div class="foot"><span class="tag">Orchestration</span><span class="st mute">issue fermée</span><span class="src">20 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Contexte">
+      <h3><a href="https://github.com/lossless-claude/lcm/issues/376">lossless-claude lcm</a></h3>
+      <div class="who">par <a href="https://github.com/ipedro">@ipedro</a></div>
+      <p>Un module function hooks pour lcm (mémoire de contexte sans perte) en accès anticipé.</p>
+      <div class="foot"><span class="tag">Contexte</span><span class="st mute">issue fermée</span><span class="src">8 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Observabilité">
+      <h3><a href="https://github.com/yasuyuki/agent-telemetry/issues/1">agent-telemetry</a></h3>
+      <div class="who">par <a href="https://github.com/yasuyuki">@yasuyuki</a></div>
+      <p>Consigner la fin et l'usage de chaque tour (principal et sous-agents), ainsi que l'état des fenêtres 5 h / hebdo et du contexte, sans relevé manuel.</p>
+      <div class="foot"><span class="tag">Observabilité</span><span class="st warn">issue ouverte</span><span class="src">15 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Interface">
+      <h3><a href="https://github.com/kunchenguid/firstmate/pull/4493">firstmate — fm-calm</a></h3>
+      <div class="who">par <a href="https://github.com/nunoras">@nunoras</a></div>
+      <p>Étude de faisabilité d'un mod reproduisant la bascule de présentation <code>/calm</code> dans Claude Code.</p>
+      <div class="foot"><span class="tag">Interface</span><span class="st mute">PR fermée sans fusion</span><span class="src">15 sept.</span></div>
+    </article>
+
+  </div>
+</section>
+
+<section id="outils">
+  <h2>Prototypes, catalogues et outils pour mods <span class="n" id="n-c"></span></h2>
+  <p class="intro">Ce ne sont pas des mods à installer pour un usage quotidien, mais des preuves de concept ou des outils qui aident à en écrire.</p>
+  <div class="grid" data-group="c">
+
+    <article class="card" data-t="Outils">
+      <h3><a href="https://github.com/Monte9/claude-function-hooks">claude-function-hooks</a></h3>
+      <div class="who">par <a href="https://github.com/Monte9">@Monte9</a></div>
+      <p>Prototype de l'algèbre du document d'architecture (17 tests, chacun cite le § qu'il vérifie). @gbrussich52 l'a ensuite attaqué avec des scripts adverses.</p>
+      <div class="foot"><span class="tag">Outils</span><span class="st mute">prototype</span><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5533230310">3 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Outils">
+      <h3><a href="https://github.com/cvuijst/cc-function-hooks-poc">cc-function-hooks-poc</a></h3>
+      <div class="who">par <a href="https://github.com/cvuijst">@cvuijst</a></div>
+      <p>Preuve de concept sur 2.1.261 : un dossier « inbox » surveillé par <code>$.clock.every</code>, dont les fichiers <code>.txt</code> deviennent des prompts via <code>$.prompt.submit</code>.</p>
+      <div class="foot"><span class="tag">Outils</span><span class="st mute">PoC</span><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5552347646">5 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Outils">
+      <h3><a href="https://github.com/karanb192/awesome-claude-code-mods">awesome-claude-code-mods</a></h3>
+      <div class="who">par <a href="https://github.com/karanb192">@karanb192</a></div>
+      <p>Liste des mods publics sur GitHub, alimentée par un scanner nocturne qui clone chaque candidat et lance <code>claude plugin validate</code> pour afficher son empreinte (process, réseau, tool calls).</p>
+      <div class="foot"><span class="tag">Outils</span><span class="st mute">catalogue</span><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5676126263">15 sept.</a></div>
+    </article>
+
+    <article class="card" data-t="Outils">
+      <h3><a href="https://github.com/karanb192/claude-code-mods/pull/3">mod-builder</a></h3>
+      <div class="who">par <a href="https://github.com/karanb192">@karanb192</a></div>
+      <p>Une skill pour écrire des mods : workflows Learn, Discover, Migrate, Review, Debug et Publish, avec les types générés et la sortie du validateur comme sources prioritaires.</p>
+      <div class="foot"><span class="tag">Outils</span><span class="st ok">PR fusionnée</span><span class="src">15 sept.</span></div>
+    </article>
+
+    <article class="card" data-t="Outils">
+      <h3><a href="https://github.com/ray-amjad/awesome-claude-code-function-hooks/tree/main/plugins/vercel-deploy-status">vercel-deploy-status</a></h3>
+      <div class="who">de ray-amjad — cité par <a href="https://github.com/dkokotov">@dkokotov</a></div>
+      <p>URLs de prévisualisation Vercel au-dessus du prompt. Cité comme modèle ; l'auteur n'a pas commenté l'issue lui-même.</p>
+      <div class="foot"><span class="tag">Outils</span><span class="st mute">cité</span><a class="src" href="https://github.com/anthropics/claude-code/issues/91870#issuecomment-5901341470">29 sept.</a></div>
+    </article>
+
+  </div>
+</section>
+
+<section id="autres">
+  <h2>Mentionnés, mais pas (encore) des mods</h2>
+  <p class="intro">Projets présentés dans la discussion qui reposent aujourd'hui sur les hooks shell, un patch binaire ou un overlay externe — ou qui ne sont que des plans d'adoption.</p>
+  <div class="grid" data-group="d">
+    <article class="card" data-t="Autres"><h3><a href="https://github.com/AdityaRon/claude-code-harness">claude-code-harness</a></h3><div class="who">@AdityaRon</div><p>Hooks de sécurité, d'audit et de contexte en <code>PreToolUse</code>/<code>PostToolUse</code> bash.</p><div class="foot"><span class="st mute">hooks shell</span></div></article>
+    <article class="card" data-t="Autres"><h3><a href="https://github.com/cwschroeder/buzz-agent-comms">buzz-agent-comms</a></h3><div class="who">@cwschroeder</div><p>Coordination d'équipe par skills + helper Python ; zéro hook à ce jour.</p><div class="foot"><span class="st mute">skills</span></div></article>
+    <article class="card" data-t="Autres"><h3><a href="https://github.com/akshaypimprikar/pragma">pragma</a></h3><div class="who">@akshaypimprikar</div><p>Chaîne spec → release pour iOS, avec 10 vérifications <code>/gates</code>.</p><div class="foot"><span class="st mute">plugin classique</span></div></article>
+    <article class="card" data-t="Autres"><h3><a href="https://github.com/frsorrentino/claude-master">claude-master</a></h3><div class="who">@frsorrentino</div><p>Jusqu'à huit sessions parallèles pilotées depuis une montre Wear OS ; lit aujourd'hui le terminal via tmux.</p><div class="foot"><span class="st mute">tmux</span></div></article>
+    <article class="card" data-t="Autres"><h3><a href="https://github.com/opencues/opencues">OpenCues</a></h3><div class="who">@wkasekende</div><p>Conseils contextuels sous le brouillon du prompt ; sur Claude Code, c'est encore un patch binaire.</p><div class="foot"><span class="st mute">patch binaire</span></div></article>
+    <article class="card" data-t="Autres"><h3><a href="https://github.com/sureffi/drawer">drawer</a></h3><div class="who">@Sureffi</div><p>Graphes <code>dot</code> dessinés dans le transcript ; migration étudiée, bloquée par l'absence d'élément image dans le terminal.</p><div class="foot"><span class="st mute">migration étudiée</span></div></article>
+    <article class="card" data-t="Autres"><h3><a href="https://github.com/seosy218-ops/claude-quickbar">claude-quickbar</a></h3><div class="who">@seosy218-ops</div><p>Boutons de commandes rapides ; overlay externe faute de rendu des mods dans l'onglet Code du desktop.</p><div class="foot"><span class="st mute">overlay externe</span></div></article>
+    <article class="card" data-t="Autres"><h3><a href="https://github.com/konsta95/ClaudeCodeStatusline">ClaudeCodeStatusline</a></h3><div class="who">@konsta95</div><p>Statusline configurable par sélecteur, bâtie sur les hooks shell.</p><div class="foot"><span class="st mute">hooks shell</span></div></article>
+    <article class="card" data-t="Autres"><h3><a href="https://github.com/OpenTradeOSS/OpenTrade">OpenTrade</a></h3><div class="who">@Automage</div><p>Orchestration de sessions CC et Codex ; un mod est envisagé.</p><div class="foot"><span class="st mute">envisagé</span></div></article>
+    <article class="card" data-t="Autres"><h3><a href="https://github.com/yonatangross/orchestkit/pull/3918">orchestkit</a></h3><div class="who">@yonatangross</div><p>Politique « FH-ready » pour 172 hooks et gate CI ; aucun hook converti.</p><div class="foot"><span class="st ok">PR fusionnée</span><span class="st mute">préparation</span></div></article>
+    <article class="card" data-t="Autres"><h3><a href="https://github.com/melodic-software/claude-code-plugins/pull/4241">melodic-software</a></h3><div class="who">@kyle-sexton</div><p>ADR : mods différés jusqu'à cinq critères remplis.</p><div class="foot"><span class="st mute">différé</span></div></article>
+    <article class="card" data-t="Autres"><h3><a href="https://github.com/WingedGuardian/GENesis-AGI/issues/2260">GENesis-AGI</a> · <a href="https://github.com/bloknayrb/tandem/issues/2015">tandem</a></h3><div class="who">@WingedGuardian · @bloknayrb</div><p>Cartes d'opportunité et rendez-vous de réévaluation (15 déc. 2026).</p><div class="foot"><span class="st warn">issues ouvertes</span></div></article>
+  </div>
+</section>
+
+<footer>
+  Méthode : chronologie de l'issue via <code>gh api repos/anthropics/claude-code/issues/91870/timeline</code> (225 commentaires, 62 références croisées).
+  Exclus : les rapports automatiques (<code>big_model_radar</code>, <code>information-gap-radar</code>), les notes de veille et podcasts, les issues et PR internes à anthropics/claude-code, et les autres harness (gajae-code).
+  Les descriptions résument ce que disent les auteurs ; les dépôts n'ont pas été clonés ni éprouvés.
+</footer>
+</main>
+<script>
+(function(){
+  var cards=[].slice.call(document.querySelectorAll('.card'));
+  function count(g){return document.querySelectorAll('[data-group="'+g+'"] .card:not(.hidden)').length}
+  function paint(){
+    ['a','b','c'].forEach(function(g){
+      var n=count(g); document.getElementById('c-'+g).textContent=n; document.getElementById('n-'+g).textContent=n;
+    });
+  }
+  var q=document.getElementById('q'), theme='all';
+  var btns=[].slice.call(document.querySelectorAll('.bar button'));
+  function apply(){
+    var s=q.value.trim().toLowerCase();
+    cards.forEach(function(c){
+      var okT=theme==='all'||c.dataset.t===theme;
+      var okS=!s||c.textContent.toLowerCase().indexOf(s)>=0;
+      c.classList.toggle('hidden',!(okT&&okS));
+    });
+    paint();
+  }
+  q.addEventListener('input',apply);
+  btns.forEach(function(b){b.addEventListener('click',function(){
+    theme=b.dataset.t; btns.forEach(function(x){x.setAttribute('aria-pressed',String(x===b))}); apply();
+  })});
+  paint();
+})();
+</script>
+</body>
+</html>

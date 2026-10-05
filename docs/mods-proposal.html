@@ -134,8 +134,9 @@ footer{margin-top:80px;padding-top:20px;border-top:1px solid var(--line);font-si
     <li><a href="#observer">8. Observabilité et apprentissage <span class="cnt"></span></a></li>
     <li><a href="#pedagogie">9. Pédagogie et ludique <span class="cnt"></span></a></li>
     <li><a href="#accessibilite">10. Accessibilité et démonstration <span class="cnt"></span></a></li>
-    <li><a href="#commencer">11. Par où commencer</a></li>
-    <li><a href="#principes">12. Principes communs</a></li>
+    <li><a href="#equipes">11. Équipes, sessions et worktrees <span class="cnt"></span></a></li>
+    <li><a href="#commencer">12. Par où commencer</a></li>
+    <li><a href="#principes">13. Principes communs</a></li>
   </ol>
   <div class="theme" role="group" aria-label="Thème">
     <button data-t="auto" aria-pressed="true">Auto</button>
@@ -149,12 +150,12 @@ footer{margin-top:80px;padding-top:20px;border-top:1px solid var(--line);font-si
 <header class="hero">
   <span class="eyebrow">Propositions · Claude Code ≥ 2.1.280</span>
   <h1>Idées de mods pour Claude Code</h1>
-  <p class="lede">Soixante-six mods qui n'existent pas encore, rangés par thème. Chacun tient sur les primitives décrites dans <a href="mods.html">le guide technique</a> — réécrire un appel d'outil avant qu'il n'entre dans le transcript, répondre à la place du cœur, dessiner un pane, ajouter un outil ou une commande, travailler en fond — et chacun dit ce qu'un test déterministe en prouverait.</p>
+  <p class="lede">Quatre-vingt-un mods qui n'existent pas encore, rangés par thème. Chacun tient sur les primitives décrites dans <a href="mods.html">le guide technique</a> — réécrire un appel d'outil avant qu'il n'entre dans le transcript, répondre à la place du cœur, dessiner un pane, ajouter un outil ou une commande, travailler en fond — et chacun dit ce qu'un test déterministe en prouverait.</p>
   <div class="meta">
     <span><b>Statut :</b> propositions, rien n'est implémenté</span>
     <span><b>API de référence :</b> <code>types/claude-code.d.ts</code> 2.1.280</span>
     <span><b>Mis à jour :</b> 24 septembre 2026</span>
-    <span><b>Ajouts :</b> 27 fiches et un dixième thème</span>
+    <span><b>Ajouts :</b> 42 fiches, un dixième et un onzième thème</span>
   </div>
 </header>
 
@@ -1064,8 +1065,197 @@ footer{margin-top:80px;padding-top:20px;border-top:1px solid var(--line);font-si
 </section>
 
 <!-- ============================================================ 11 -->
+<section id="equipes">
+<h2><span class="n">11</span>Équipes, sessions et worktrees</h2>
+<p class="intro">Quatre fonctionnalités du cœur pour travailler à plusieurs : les <a href="https://code.claude.com/docs/fr/agent-teams">équipes d'agents</a>, la <a href="https://code.claude.com/docs/fr/cross-session-messaging">messagerie entre sessions</a>, les <a href="https://code.claude.com/docs/fr/workflows">workflows</a> et les <a href="https://code.claude.com/docs/fr/worktrees">worktrees</a>. Le cœur fournit le mécanisme ; ces mods ajoutent ce qui manque autour : des portes de qualité, des garde-fous, des coûts visibles et le ménage. Mécanique vérifiée contre <code>types/claude-code.d.ts</code> 2.1.281.</p>
+<div class="mods">
+
+<article class="mod" data-level="1" data-cost="0" data-fresh="1">
+  <div class="top"><h3>team-gate</h3><span class="tag">une tâche n'est finie que testée</span></div>
+  <p class="pitch">Un coéquipier qui marque sa tâche terminée alors que ses propres tests sont rouges se la voit refuser, avec la ligne en échec. Même chose s'il veut s'arrêter en laissant une tâche en cours.</p>
+  <ul>
+    <li><code>classic.TaskCompleted</code> : <code>teammate_name</code> donne l'agent, et <code>$.agent.list()</code> son id ; la porte lit le dernier résultat de test que <em>ce</em> coéquipier a obtenu, vu par <code>tool.call</code> sur <code>Bash</code> grâce à <code>e.agentId</code>.</li>
+    <li>Rouge, ou aucun test depuis sa dernière édition : <code>{ block }</code>, l'équivalent du code de sortie 2, qui renvoie le coéquipier au travail avec la raison.</li>
+    <li><code>classic.TeammateIdle</code> : même porte pour une tâche restée <em>en cours</em>. Rien ne s'exécute sous le budget de 10 s, la porte ne fait que lire ce qui a déjà été observé.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> un <code>npm test</code> en échec vu sous l'<code>agentId</code> de « back », puis <code>TaskCompleted</code> de « back » → <code>block</code> qui cite la ligne ; le même échec chez « front » ne bloque pas « back ».</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l1">Facile</span><span class="badge m0">0 appel</span><span class="ev">classic.TaskCompleted</span><span class="ev">classic.TeammateIdle</span><span class="ev">tool.call</span></div>
+</article>
+
+<article class="mod" data-level="1" data-cost="0" data-fresh="1">
+  <div class="top"><h3>turf</h3><span class="tag">chacun ses fichiers</span></div>
+  <p class="pitch">La documentation le dit : deux coéquipiers qui éditent le même fichier s'écrasent. Ici, le premier qui touche un fichier en devient responsable pour l'équipe ; l'autre est refusé et renvoyé vers lui.</p>
+  <ul>
+    <li><code>tool.call</code> sur <code>Edit</code>/<code>Write</code> : chemin réel → premier <code>agentId</code> qui l'édite ; un autre <code>agentId</code> reçoit <code>{ deny }</code> : « src/api.ts appartient à back : lui écrire par SendMessage ».</li>
+    <li>Le chef (boucle principale, sans <code>agentId</code>) passe toujours ; <code>/turf</code> affiche la carte et libère un fichier.</li>
+    <li>Couvre les coéquipiers <em>dans le même processus</em> et les sous-agents. Des coéquipiers en volets séparés tournent dans d'autres processus : c'est le rôle de <code>locks</code>, et la fiche le dit.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> « back » édite <code>a.ts</code>, puis « front » édite <code>a.ts</code> → refus nommant « back » ; « front » édite <code>b.ts</code> → passe ; après <code>/turf free a.ts</code>, « front » passe.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l1">Facile</span><span class="badge m0">0 appel</span><span class="ev">tool.call</span><span class="ev">$.agent.list</span><span class="ev">command.run</span></div>
+</article>
+
+<article class="mod" data-level="2" data-cost="1" data-fresh="1">
+  <div class="top"><h3>roster</h3><span class="tag">une équipe décrite une fois</span></div>
+  <p class="pitch"><code>/team revue</code> lance l'équipe décrite dans <code>.claude/teams/revue.json</code> : noms, rôles, modèles, fichiers de chacun. Vous choisissez la composition au lieu de laisser le modèle décider combien de coéquipiers il crée.</p>
+  <ul>
+    <li><code>$.agent.spawn({ name, subagentType, model, prompt })</code> par membre : avec les équipes activées, un spawn nommé devient un coéquipier.</li>
+    <li>Au-delà de cinq membres, un avertissement : trois coéquipiers ciblés font souvent mieux que cinq dispersés, et le coût croît avec chacun.</li>
+    <li>Les fichiers attribués à chacun alimentent <code>turf</code> s'il est installé (appel dans un <code>try</code>) ; les coûts estimés sont affichés avant le lancement.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> un preset de trois rôles → trois <code>agent.spawn</code> simulés avec les bons noms et modèles, dans l'ordre ; un preset inconnu → aucun spawn et un message.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l2">Moyen</span><span class="badge m1">N coéquipiers</span><span class="ev">command.run</span><span class="ev">$.agent.spawn</span></div>
+</article>
+
+<article class="mod" data-level="2" data-cost="0" data-fresh="1">
+  <div class="top"><h3>team-budget</h3><span class="tag">un plafond par coéquipier</span></div>
+  <p class="pitch">Chaque coéquipier a son contexte et sa facture. Un budget par membre : au seuil, il est prié de conclure ; au double, il est arrêté, et le chef sait pourquoi.</p>
+  <ul>
+    <li><code>turn.step</code> additionne l'usage par <code>e.agentId</code> ; les noms viennent de <code>$.agent.list()</code> (type <code>teammate</code>).</li>
+    <li>Au seuil : <code>$.session.send({ to: { agentId }, text })</code> « budget atteint, rends ton résultat » et un <code>$.ui.toast</code> chez le chef.</li>
+    <li>Au double : <code>$.tool.call</code> de <code>TaskStop</code>, qui accepte un coéquipier par son id. Le tableau affiche le coût en dollars et les tokens séparément.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> budget 1 $, usage simulé de 0,40 $ par étape pour « back » → le message part à la troisième étape, une seule fois ; <code>TaskStop</code> à la cinquième ; « front » n'est pas compté avec « back ».</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l2">Moyen</span><span class="badge m0">0 appel</span><span class="ev">turn.step</span><span class="ev">$.session.send</span><span class="ev">$.tool.call</span></div>
+</article>
+
+<article class="mod" data-level="1" data-cost="0" data-fresh="1">
+  <div class="top"><h3>mailbox-check</h3><span class="tag">le courrier que personne n'a signé</span></div>
+  <p class="pitch">La boîte aux lettres d'une équipe est un fichier JSON sous votre répertoire personnel : n'importe quel processus peut y écrire. Un message que le harness n'a pas écrit lui-même arrive marqué comme tel, ou pas du tout.</p>
+  <ul>
+    <li><code>session.receive</code> avec le matcher <code>{ origin: { isVerified: false } }</code> : le texte part préfixé « non vérifié — écrit dans la boîte, pas envoyé par un membre ».</li>
+    <li>Mode strict dans <code>/config</code> : <code>{ consumed }</code>, rien n'est mis en file, et une ligne <code>$.ui.log</code> garde la trace.</li>
+    <li>Un message vérifié passe à l'octet près. Le mod ne se fonde que sur <code>isVerified</code>, que le cœur établit, jamais sur le nom de plugin que l'expéditeur déclare.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> une réception simulée <code>isVerified: false</code> ressort préfixée (mode strict : consommée) ; la même avec <code>isVerified: true</code> ressort identique.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l1">Facile</span><span class="badge m0">0 appel</span><span class="ev">session.receive</span></div>
+</article>
+
+<article class="mod" data-level="3" data-cost="0" data-fresh="1">
+  <div class="top"><h3>plan-gate</h3><span class="tag">les plans des coéquipiers, relus par vous</span></div>
+  <p class="pitch">En mode plan, le plan d'un coéquipier est approuvé par la session du chef dès qu'il arrive, sans que personne ne le lise. Ici, il s'affiche dans un pane, et c'est vous qui approuvez ou renvoyez avec un commentaire.</p>
+  <ul>
+    <li><code>session.receive</code> avec le matcher <code>{ origin: { teammate } }</code> : la demande d'approbation est interceptée avant la file, puis affichée par <code>$.ui.open</code>.</li>
+    <li>« Approuver » la laisse suivre son cours ; « Renvoyer » répond au coéquipier par <code>$.session.send</code> avec votre commentaire.</li>
+    <li>À éprouver d'abord : qu'une demande d'approbation passe bien par <code>session.receive</code>, qui peut la retenir, et ne soit pas traitée par le harness avant ce point.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> une demande simulée de « back » ouvre le pane sans rien mettre en file ; « Renvoyer » produit un seul <code>session.send</code> vers « back » qui contient le commentaire.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l3">Ambitieux</span><span class="badge m0">0 appel</span><span class="ev">session.receive</span><span class="ev">$.session.send</span><span class="ev">ui.press</span></div>
+</article>
+
+<article class="mod" data-level="1" data-cost="0" data-fresh="1">
+  <div class="top"><h3>portable</h3><span class="tag">un message lisible depuis l'autre worktree</span></div>
+  <p class="pitch">« Voir src/api.ts:42 », écrit depuis un worktree, ne désigne pas le même fichier dans la session qui le reçoit, parce qu'elle travaille dans un autre répertoire et sur une autre branche. Les chemins partent en absolu, avec la branche et le commit.</p>
+  <ul>
+    <li><code>session.send</code> : les chemins relatifs du texte sont résolus contre <code>$.session.cwd()</code> et réécrits par <code>next({ ...e, text })</code>.</li>
+    <li>Une ligne de pied : branche et commit courts (<code>$.process.run(['git', 'rev-parse', …])</code>), pour que le destinataire sache quelle version on lui décrit.</li>
+    <li>Un chemin qui n'existe pas reste tel quel : le mod ne devine rien.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> depuis <code>/r/.claude/worktrees/x</code>, « voir src/a.ts:12 » devient <code>/r/.claude/worktrees/x/src/a.ts:12</code> avec le pied <code>worktree-x @ abc1234</code> ; un chemin inexistant ne change pas.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l1">Facile</span><span class="badge m0">0 appel</span><span class="ev">session.send</span><span class="ev">$.session.cwd</span><span class="ev">$.process.run</span></div>
+</article>
+
+<article class="mod" data-level="2" data-cost="0" data-fresh="1">
+  <div class="top"><h3>landed</h3><span class="tag">ce qui a atterri, dit aux autres worktrees</span></div>
+  <p class="pitch">Un commit ou un merge réussi dans un worktree est annoncé aux autres sessions du même dépôt, en une ligne et sans que le modèle l'écrive. La session qui touche aux mêmes fichiers reçoit l'annonce dans son contexte ; les autres la voient sans qu'aucun tour ne démarre.</p>
+  <ul>
+    <li>Registre dans le <code>.git</code> commun à tous les worktrees (sous la racine donnée par <code>$.session.repo()</code>) : un fichier par session, avec son id, son répertoire et les fichiers qu'elle a édités ; une échéance écarte les sessions mortes, puisque <code>$.fs</code> n'a pas de <code>delete</code>.</li>
+    <li><code>tool.call</code> sur <code>Bash</code> : <code>git commit</code>/<code>merge</code> réussi → <code>$.session.send({ to: { sessionId } })</code> vers chaque voisin : SHA, sujet, fichiers.</li>
+    <li>Côté réception, <code>session.receive</code> <code>{ consumed }</code> puis <code>$.ui.toast</code> ; l'annonce est jointe au prochain prompt seulement si un fichier recoupe ceux de la session.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> deux voisins au registre, un commit sur <code>a.ts</code> → deux envois ; chez le voisin qui a édité <code>a.ts</code>, le prompt suivant porte l'annonce, chez l'autre seulement un toast et aucune mise en file.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l2">Moyen</span><span class="badge m0">0 appel</span><span class="ev">tool.call</span><span class="ev">$.session.send</span><span class="ev">session.receive</span></div>
+</article>
+
+<article class="mod" data-level="3" data-cost="0" data-fresh="1">
+  <div class="top"><h3>watchtower</h3><span class="tag">prévenu quand l'autre session a fini</span></div>
+  <p class="pitch"><code>/watch migration</code> : quand la session « migration » devient inactive, un son et un toast. Pas de nouveau tour ni de tokens dépensés ici pour apprendre qu'elle a fini.</p>
+  <ul>
+    <li>L'abonnement passe par <code>$.tool.call</code> de <code>SendMessage</code> avec <code>notify_when_idle</code>, depuis la conversation principale : c'est la seule qui peut s'abonner.</li>
+    <li>Quand l'avis arrive, <code>session.receive</code> le consomme au lieu de laisser le cœur démarrer un tour, puis appelle <code>$.ui.toast</code> et <code>$.audio.play</code>.</li>
+    <li>Un bandeau liste les veilles en cours, qui expirent au bout des 12 h fixées par le cœur.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> un avis simulé de « migration » → consommé, un toast, un son, et aucun <code>prompt.submit</code> ; un message ordinaire de la même session passe.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l3">Ambitieux</span><span class="badge m0">0 appel</span><span class="ev">$.tool.call</span><span class="ev">session.receive</span><span class="ev">$.audio</span></div>
+</article>
+
+<article class="mod" data-level="1" data-cost="0" data-fresh="1">
+  <div class="top"><h3>script-check</h3><span class="tag">le workflow refusé avant de coûter</span></div>
+  <p class="pitch">Un script de workflow qui appelle <code>Date.now()</code>, fait un <code>import()</code> ou calcule son bloc <code>meta</code> échoue une fois lancé, ou disparaît de l'autocomplétion. Il est refusé avant, avec la ligne fautive, pour que le modèle le corrige sans lancer un seul agent.</p>
+  <ul>
+    <li><code>tool.call</code> sur <code>Workflow</code> : le script vient de <code>e.input.script</code>, ou de <code>scriptPath</code> par <code>$.fs.read</code>.</li>
+    <li>Règles tirées de la documentation : <code>meta</code> en première instruction et littéral, titres de <code>phase()</code> présents dans <code>meta.phases</code>, ni <code>Date.now()</code>, ni <code>Math.random()</code>, ni <code>new Date()</code> sans argument, ni <code>import()</code>, et aucun schéma dont une clé <code>required</code> est exclue par <code>additionalProperties: false</code>.</li>
+    <li>Analyse lexicale pure, sans exécuter le script. Un script propre passe sans être modifié.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> un script avec <code>Date.now()</code> ligne 14 → <code>{ deny }</code> qui nomme la ligne 14 ; un <code>meta</code> qui contient une variable → refus ; un script propre atteint le cœur, inchangé.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l1">Facile</span><span class="badge m0">0 appel</span><span class="ev">tool.call</span><span class="ev">$.fs.read</span></div>
+</article>
+
+<article class="mod" data-level="3" data-cost="0" data-fresh="1">
+  <div class="top"><h3>codify</h3><span class="tag">l'équipe qui a marché devient un script</span></div>
+  <p class="pitch">Une équipe d'agents a mené une revue en trois angles, et ça a marché. <code>/codify</code> transforme sa liste de tâches en un workflow enregistré : la prochaine fois, le script orchestre et personne ne réinvente la répartition.</p>
+  <ul>
+    <li>La liste de tâches persiste sous <code>~/.claude/tasks/&lt;équipe&gt;/</code>, lue par <code>$.fs</code> ; <code>classic.TaskCreated</code> en garde aussi une copie propre au fil de l'eau, au cas où le format interne change.</li>
+    <li>Génération déterministe : tâches indépendantes → <code>parallel()</code>, dépendances → phases successives, un <code>meta</code> littéral. Le fichier passe les règles de <code>script-check</code>.</li>
+    <li>Écrit dans <code>.claude/workflows/</code> et affiché avant d'être gardé ; rien ne s'enregistre sans votre clic.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> tâches A et B indépendantes, C qui dépend des deux → un script <code>parallel(A, B)</code> puis <code>C</code>, dont le <code>meta</code> est littéral et qui passe <code>script-check</code>.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l3">Ambitieux</span><span class="badge m0">0 appel</span><span class="ev">classic.TaskCreated</span><span class="ev">$.fs</span><span class="ev">command.run</span></div>
+</article>
+
+<article class="mod" data-level="1" data-cost="0" data-fresh="1">
+  <div class="top"><h3>fresh-tree</h3><span class="tag">un worktree prêt à travailler</span></div>
+  <p class="pitch">Un worktree est une extraction fraîche : sans <code>node_modules</code>, sans <code>.env</code>. Le modèle l'apprend dès l'entrée, au lieu de le découvrir après trois échecs, et la ligne <code>.worktreeinclude</code> qui manque vous est proposée.</p>
+  <ul>
+    <li><code>session.start</code> dans <code>.claude/worktrees/</code>, ou <code>tool.call</code> sur <code>EnterWorktree</code> après <code>next(e)</code> (le résultat donne <code>worktreePath</code>).</li>
+    <li>Comparaison avec l'extraction principale (<code>$.session.repo()</code>) : dépendances non installées, fichiers ignorés présents là-bas et absents ici. Seuls les <em>noms</em> de fichiers sont comparés, aucun contenu de <code>.env</code> n'entre dans le contexte.</li>
+    <li>Un bloc de contexte seulement s'il y a un écart ; bouton « Ajouter à .worktreeinclude », écrit sur un clic.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> worktree sans <code>node_modules</code> et <code>.env</code> présent dans l'extraction principale mais absent de <code>.worktreeinclude</code> → deux lignes, aucune valeur ; worktree complet → aucun bloc.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l1">Facile</span><span class="badge m0">0 appel</span><span class="ev">session.start</span><span class="ev">tool.call</span><span class="ev">$.fs.list</span></div>
+</article>
+
+<article class="mod" data-level="2" data-cost="0" data-fresh="1">
+  <div class="top"><h3>collision-radar</h3><span class="tag">le conflit de fusion, vu avant</span></div>
+  <p class="pitch">Deux worktrees qui modifient le même fichier se retrouveront au merge. Le radar le dit dès la première édition, avec le nom de l'autre session et de sa branche : on se coordonne tant que c'est encore facile.</p>
+  <ul>
+    <li>Registre dans le <code>.git</code> commun, un fichier par session : fichiers édités, branche, échéance.</li>
+    <li><code>tool.call</code> sur <code>Edit</code>/<code>Write</code>, après <code>next(e)</code> : fichier déjà modifié par une session voisine → <code>context</code> « aussi modifié dans worktree-api (session api-worker) ». Une fois par fichier et par voisin.</li>
+    <li>Rien n'est refusé, contrairement à <code>locks</code> : chaque worktree a sa copie, et le risque n'apparaît qu'au merge.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> voisin qui a édité <code>a.ts</code> ; éditer <code>a.ts</code> → un <code>context</code> qui nomme le voisin ; une seconde édition → rien ; <code>b.ts</code> → rien ; un voisin échu → rien.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l2">Moyen</span><span class="badge m0">0 appel</span><span class="ev">tool.call</span><span class="ev">$.session.repo</span><span class="ev">$.fs</span></div>
+</article>
+
+<article class="mod" data-level="1" data-cost="0" data-fresh="1">
+  <div class="top"><h3>tree-garden</h3><span class="tag">le ménage des worktrees</span></div>
+  <p class="pitch">Les runs <code>-p</code> ne nettoient pas leurs worktrees, et ceux des sous-agents qui ont modifié quelque chose restent sur le disque. <code>/trees</code> les liste tous et propose de retirer ceux qui ne contiennent plus rien à perdre.</p>
+  <ul>
+    <li><code>$.process.run(['git', 'worktree', 'list', '--porcelain'])</code>, puis pour chacun : état, commits d'avance, verrou, branche distante supprimée (donc fusionnée).</li>
+    <li>« Retirer » n'apparaît que pour un worktree propre et fusionné : <code>git worktree remove</code> sans <code>--force</code>, jamais sur un verrou, et git garde le dernier mot.</li>
+    <li><code>classic.WorktreeRemove</code> tient la liste à jour quand le cœur retire un worktree lui-même.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> trois worktrees simulés, propre et fusionné / modifié / verrouillé → « Retirer » seulement sur le premier, et l'appel est <code>remove</code> sans <code>--force</code>.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l1">Facile</span><span class="badge m0">0 appel</span><span class="ev">command.run</span><span class="ev">$.process.run</span><span class="ev">ui.press</span></div>
+</article>
+
+<article class="mod" data-level="2" data-cost="0" data-fresh="1">
+  <div class="top"><h3>own-tree</h3><span class="tag">un sous-agent qui écrit a son worktree</span></div>
+  <p class="pitch">Deux sous-agents qui écrivent dans le même répertoire se marchent dessus. Le second à démarrer est envoyé dans son propre worktree, avec l'isolation du cœur, sans que le modèle ait eu à le demander.</p>
+  <ul>
+    <li><code>$.agent.register</code> au démarrage : un jumeau de chaque type qui peut écrire, déclaré avec <code>isolation: 'worktree'</code>.</li>
+    <li><code>agent.spawn</code> : si un agent qui écrit tourne déjà dans ce répertoire (<code>$.agent.list()</code>), <code>subagentType</code> est réécrit vers le jumeau. Les types en lecture seule, comme <code>Explore</code>, ne sont pas touchés.</li>
+    <li>À éprouver d'abord : qu'un type enregistré par un plugin avec <code>isolation: 'worktree'</code> reçoive bien les quatre vérifications d'isolation du cœur.</li>
+  </ul>
+  <p class="proof"><b>Test :</b> un <code>general-purpose</code> en cours, un second spawn → réécrit vers le jumeau isolé ; un <code>Explore</code> → inchangé ; aucun agent en cours → inchangé.</p>
+  <div class="foot"><span class="badge new">Nouveau</span><span class="badge l2">Moyen</span><span class="badge m0">0 appel</span><span class="ev">agent.spawn</span><span class="ev">$.agent.register</span></div>
+</article>
+
+</div>
+</section>
+
+<!-- ============================================================ 12 -->
 <section id="commencer">
-<h2><span class="n">11</span>Par où commencer</h2>
+<h2><span class="n">12</span>Par où commencer</h2>
 <p class="intro">Le meilleur rapport entre ce que le mod change au quotidien et ce qu'il demande pour être écrit et éprouvé.</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Mod</th><th>Pourquoi d'abord</th><th>Difficulté</th></tr></thead>
@@ -1081,13 +1271,16 @@ footer{margin-top:80px;padding-top:20px;border-top:1px solid var(--line);font-si
 <tr><td><a href="#securite"><code>pkg-guard</code></a></td><td>Arrête un typosquat sans réseau ; le reste de la protection tient en une requête au registre.</td><td><span class="badge l2">Moyen</span></td></tr>
 <tr><td><a href="#agents"><code>locks</code></a></td><td>Rend sûres les sessions parallèles sur un même dépôt ; se combine avec <code>message</code>.</td><td><span class="badge l2">Moyen</span></td></tr>
 <tr><td><a href="#securite"><code>mod-ledger</code></a></td><td>Répond au manque d'écran de permissions tant qu'il n'existe pas.</td><td><span class="badge l2">Moyen</span></td></tr>
+<tr><td><a href="#equipes"><code>script-check</code></a></td><td>Un workflow mal écrit coûte des dizaines d'agents ; un analyseur lexical pur l'arrête avant le premier.</td><td><span class="badge l1">Facile</span></td></tr>
+<tr><td><a href="#equipes"><code>turf</code></a></td><td>Le premier écueil cité par la documentation des équipes, réglé par une table fichier → agent.</td><td><span class="badge l1">Facile</span></td></tr>
+<tr><td><a href="#equipes"><code>landed</code></a></td><td>Des worktrees parallèles qui se tiennent au courant sans qu'un modèle rédige quoi que ce soit.</td><td><span class="badge l2">Moyen</span></td></tr>
 <tr><td><a href="#observer"><code>flight-recorder</code></a></td><td>Le plus ambitieux, et celui qui accélère l'écriture de tous les autres.</td><td><span class="badge l3">Ambitieux</span></td></tr>
 </tbody></table></div>
 </section>
 
-<!-- ============================================================ 12 -->
+<!-- ============================================================ 13 -->
 <section id="principes">
-<h2><span class="n">12</span>Principes communs</h2>
+<h2><span class="n">13</span>Principes communs</h2>
 <p class="intro">Ce que toutes ces propositions respectent, et qui les distingue d'une idée plausible qui échouerait sans message.</p>
 <div class="rules">
   <div><b>Compresser à l'écriture</b>Toute réduction a lieu dans <code>tool.call</code> ou <code>prompt.submit</code>, avant l'entrée au transcript. Aucun mod ne réécrit un ancien résultat.</div>
@@ -1096,6 +1289,7 @@ footer{margin-top:80px;padding-top:20px;border-top:1px solid var(--line);font-si
   <div><b>Une garantie testable</b>Chaque fiche nomme un test déterministe. « Le modèle comprend mieux » n'en est pas un ; « la ligne d'erreur figure dans le résultat » en est un.</div>
   <div><b>Proposer, pas imposer</b>Ce qui touche aux settings ou aux permissions s'écrit sur un clic, jamais d'office ; un interrupteur n'écrit sa ligne que si l'état change.</div>
   <div><b>Afficher n'est pas transmettre</b><code>ui.render</code> et <code>classic.MessageDisplay</code> changent ce que vous voyez, jamais ce que le modèle lit. Un mod d'affichage le dit dans sa fiche, et son test le vérifie sur <code>$.session.messages()</code>.</div>
+  <div><b>Un message n'est pas un ordre</b>Ce qui vient d'une autre session ou d'un coéquipier reste une donnée. Un garde-fou se fonde sur ce que le cœur établit (<code>isVerified</code>, <code>agentId</code>), jamais sur le nom de plugin qu'un expéditeur déclare.</div>
   <div><b>Autonome</b>Chaque mod se suffit. Une dépendance à <code>cockpit</code> ou <code>message</code> s'appelle dans un <code>try</code>, ne se hooke pas, et son absence ne casse rien.</div>
 </div>
 </section>
