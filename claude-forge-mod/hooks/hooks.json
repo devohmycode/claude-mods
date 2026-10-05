@@ -1,0 +1,6 @@
+{
+  "description": "/forge: new, lint and check, answered by one command.run hook",
+  "modules": [
+    "./register.ts"
+  ]
+}

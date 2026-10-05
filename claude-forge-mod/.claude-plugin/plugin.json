@@ -1,0 +1,12 @@
+{
+  "name": "forge",
+  "version": "0.1.0",
+  "description": "Make your own plugins and mods, and catch what a mod breaks without a word before a session loads it. /forge new writes a mod (or a classic plugin) in this repository's shape; /forge lint reads the source for the failures the loader refuses or that fail silently ($ bound to a name, a computed event or env name, two hooks with no matcher on one event, a plugin noun's verb hooked, a .catch that calls next twice, a $.config.set that reloads for nothing, a test plugin whose register delegates); /forge check adds tsc, claude plugin validate --strict with its inventory compared to what the source spells, and claude plugin test. Nothing runs unless the command is typed, and nothing reaches the model but the command's output.",
+  "author": {
+    "name": "DevOhMyCode"
+  },
+  "homepage": "https://github.com/devohmycode/claude-mods/tree/main/claude-forge-mod",
+  "repository": "https://github.com/devohmycode/claude-mods",
+  "license": "MIT",
+  "keywords": ["plugin", "mod", "scaffold", "lint", "validate", "function-hooks"]
+}
